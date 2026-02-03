@@ -6,6 +6,7 @@ def main():
     parser.add_argument('--data_path', type=str, default=None, help='Path to raw dataset (contains train/val folders)')
     parser.add_argument('--epochs', type=int, default=config.EPOCHS, help='Number of epochs')
     parser.add_argument('--batch', type=int, default=config.BATCH_SIZE, help='Batch size')
+    parser.add_argument('--imgsz', type=int, default=config.IMGSZ, help='Image size')
     
     args = parser.parse_args()
     
@@ -39,11 +40,11 @@ def main():
     results = yolo.train(
         data=str(yaml_path),
         epochs=args.epochs,
-        imgsz=config.IMGSZ,
+        imgsz=args.imgsz,
         batch=args.batch,
         name=config.PROJECT_NAME,
         device=device,
-        workers=8 if IN_COLAB else 2
+        workers=8 if IN_COLAB else 0
     )
     
     print("[INFO] Training complete!")

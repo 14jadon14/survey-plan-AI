@@ -75,8 +75,11 @@ def convert_to_obb_parallel(json_file, out_img_dir, out_lbl_dir):
         
     # Execute in parallel
     cpu_count = os.cpu_count() or 1
-    print(f"  - Processing {len(tasks)} images with {cpu_count} cores...")
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    # Cap CPU count to avoid OOM on high-core machines during local dev
+    max_workers = min(cpu_count, 4)
+    
+    print(f"  - Processing {len(tasks)} images with {max_workers} cores...")
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         results = list(executor.map(process_single_image_obb, tasks))
         
     return cats
@@ -111,7 +114,9 @@ def prepare_data(data_path_arg=None):
         # Download script if missing
         split_script = Path("train_val_split.py")
         if not split_script.exists():
-             os.system("wget -O train_val_split.py https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py")
+             import urllib.request
+             print("[INFO] Downloading train_val_split.py...")
+             urllib.request.urlretrieve("https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py", "train_val_split.py")
         
         # Run split
         cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct=0.9'
@@ -160,11 +165,12 @@ def prepare_data(data_path_arg=None):
              # We can re-use the same JSON path for both, assuming the slicer just skips missing images.
              
              # Verify which split folders actually exist with images
-             if (raw_data_path / "train").exists():
+             # Check raw_data_path (custom_data) AND config.BASE_DIR/data (train_val_split default)
+             if (raw_data_path / "train").exists() or (config.BASE_DIR / "data" / "train").exists():
                  splits['train'] = master_json
-             if (raw_data_path / "validation").exists():
+             if (raw_data_path / "validation").exists() or (config.BASE_DIR / "data" / "validation").exists():
                  splits['validation'] = master_json
-             if (raw_data_path / "val").exists():
+             if (raw_data_path / "val").exists() or (config.BASE_DIR / "data" / "val").exists():
                  splits['val'] = master_json
         else:
              print("[ERROR] No JSON annotations found in data directory!")
@@ -177,6 +183,8 @@ def prepare_data(data_path_arg=None):
     for split_name, json_path in splits.items():
         print(f"Processing {split_name}...")
         sliced_out = sliced_base / split_name
+        sliced_base.mkdir(parents=True, exist_ok=True) # Ensure parent exists for temp file
+
         
         # Check cache
         if sliced_out.exists() and len(list(sliced_out.glob("*.json"))) > 0:
@@ -184,11 +192,67 @@ def prepare_data(data_path_arg=None):
              sliced_coco_path = str(list(sliced_out.glob("sliced_*_coco.json"))[0])
         else:
              print(f"  - Slicing to {sliced_out}...")
-             img_dir = json_path.parent # Attributes image location to json location
-             # Often in COCO exports, images are side-by-side with json
+             
+             # Smart Image Dir Detection
+             # If train_val_split moved images, they are in raw_data_path/split_name/images
+             # OR they are in ./data/split_name/images (hardcoded in the script)
+             potential_img_dir = raw_data_path / split_name / "images"
+             potential_img_dir_2 = config.BASE_DIR / "data" / split_name / "images"
+             
+             if potential_img_dir.exists() and any(potential_img_dir.iterdir()):
+                 img_dir = potential_img_dir
+             elif potential_img_dir_2.exists() and any(potential_img_dir_2.iterdir()):
+                 img_dir = potential_img_dir_2
+             else:
+                 img_dir = json_path.parent
+                 
+             print(f"  - Using image dir: {img_dir}")
+             
+             # SANITIZE JSON:
+             # The JSON might contain relative paths from Label Studio (e.g., ../../media/...).
+             # We need to strip these so SAHI looks for the basename in 'img_dir'.
+             import tempfile
+             
+             with open(json_path, 'r') as jf:
+                 coco_data = json.load(jf)
+             
+             # Get list of available images in the directory
+             available_imgs = {p.name for p in img_dir.glob("*")}
+             
+             filtered_images = []
+             kept_ids = set()
+             
+             for img in coco_data['images']:
+                 basename = Path(img['file_name']).name
+                 img['file_name'] = basename # Clean the name
+                 
+                 if basename in available_imgs:
+                     filtered_images.append(img)
+                     kept_ids.add(img['id'])
+             
+             coco_data['images'] = filtered_images
+             
+             # Filter annotations (optional but cleaner)
+             if 'annotations' in coco_data:
+                 coco_data['annotations'] = [
+                     ann for ann in coco_data['annotations'] 
+                     if ann['image_id'] in kept_ids
+                 ]
+                 
+             print(f"  - Filtered JSON: {len(filtered_images)} images found in {img_dir}")
+                 
+             # Save to temp file
+             temp_json_path = sliced_out.parent / f"temp_clean_{split_name}.json"
+             with open(temp_json_path, 'w') as jf:
+                 json.dump(coco_data, jf)
+             
+             # If no images, skip slicing
+             if not filtered_images:
+                 print(f"  - [WARN] No images found for {split_name} split. Skipping.")
+                 continue
              
              slice_coco_dict, sliced_coco_path = slice_coco(
-                coco_annotation_file_path=str(json_path),
+                coco_annotation_file_path=str(temp_json_path),
                 image_dir=str(img_dir),
                 output_coco_annotation_file_name=f"sliced_{split_name}",
                 output_dir=str(sliced_out),

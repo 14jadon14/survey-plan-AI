@@ -31,3 +31,5 @@ custom_data/
 # IDEs
 .vscode/
 .idea/
+local_test.log
+survey_plan_obb.yaml
