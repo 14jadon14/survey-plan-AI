@@ -186,8 +186,10 @@ def prepare_data(data_path_arg=None):
         sliced_base.mkdir(parents=True, exist_ok=True) # Ensure parent exists for temp file
 
         
+        temp_json_path = sliced_out.parent / f"temp_clean_{split_name}.json"
+
         # Check cache
-        if sliced_out.exists() and len(list(sliced_out.glob("*.json"))) > 0:
+        if sliced_out.exists() and len(list(sliced_out.glob("*.json"))) > 0 and temp_json_path.exists():
              print(f"  - Found existing slice at {sliced_out}")
              sliced_coco_path = str(list(sliced_out.glob("sliced_*_coco.json"))[0])
         else:
