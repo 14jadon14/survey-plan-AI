@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Data & Models (Heavy files stay local/Drive)
+data/
+*.zip
+models/
+runs/
+output/
+sliced_dataset/
+survey_obb_dataset/
+custom_data/
+
+# Local Agent Configs
+.antigravity/
+
+# IDEs
+.vscode/
+.idea/

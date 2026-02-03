@@ -1,0 +1,6 @@
+ultralytics
+sahi
+pybboxes
+opencv-python
+shapely
+google-colab; sys_platform == 'linux'
