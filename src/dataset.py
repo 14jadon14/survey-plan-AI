@@ -223,12 +223,21 @@ def prepare_data(data_path_arg=None):
              kept_ids = set()
              
              for img in coco_data['images']:
-                 basename = Path(img['file_name']).name
+                 # Handle both / and \ separators for cross-platform compatibility
+                 raw_name = str(img['file_name'])
+                 basename = raw_name.replace('\\', '/').split('/')[-1]
                  img['file_name'] = basename # Clean the name
                  
                  if basename in available_imgs:
                      filtered_images.append(img)
                      kept_ids.add(img['id'])
+             
+             # DEBUG: If filtering removed everything, show why
+             if not filtered_images and coco_data['images']:
+                 print(f"  - [ERROR] Filter removed all images! Debug info:")
+                 print(f"    - Available on disk (first 5): {list(available_imgs)[:5]}")
+                 print(f"    - JSON filenames (first 5 processed): {[str(img['file_name']).replace('\\', '/').split('/')[-1] for img in coco_data['images'][:5]]}")
+                 print(f"    - JSON raw filenames (first 5): {[img['file_name'] for img in coco_data['images'][:5]]}")
              
              coco_data['images'] = filtered_images
              
