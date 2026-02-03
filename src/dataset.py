@@ -188,27 +188,27 @@ def prepare_data(data_path_arg=None):
         
         temp_json_path = sliced_out.parent / f"temp_clean_{split_name}.json"
 
+        # Smart Image Dir Detection
+        # If train_val_split moved images, they are in raw_data_path/split_name/images
+        # OR they are in ./data/split_name/images (hardcoded in the script)
+        potential_img_dir = raw_data_path / split_name / "images"
+        potential_img_dir_2 = config.BASE_DIR / "data" / split_name / "images"
+        
+        if potential_img_dir.exists() and any(potential_img_dir.iterdir()):
+            img_dir = potential_img_dir
+        elif potential_img_dir_2.exists() and any(potential_img_dir_2.iterdir()):
+            img_dir = potential_img_dir_2
+        else:
+            img_dir = json_path.parent
+            
+        print(f"  - Using image dir: {img_dir}")
+
         # Check cache
         if sliced_out.exists() and len(list(sliced_out.glob("*.json"))) > 0 and temp_json_path.exists():
              print(f"  - Found existing slice at {sliced_out}")
              sliced_coco_path = str(list(sliced_out.glob("sliced_*_coco.json"))[0])
         else:
              print(f"  - Slicing to {sliced_out}...")
-             
-             # Smart Image Dir Detection
-             # If train_val_split moved images, they are in raw_data_path/split_name/images
-             # OR they are in ./data/split_name/images (hardcoded in the script)
-             potential_img_dir = raw_data_path / split_name / "images"
-             potential_img_dir_2 = config.BASE_DIR / "data" / split_name / "images"
-             
-             if potential_img_dir.exists() and any(potential_img_dir.iterdir()):
-                 img_dir = potential_img_dir
-             elif potential_img_dir_2.exists() and any(potential_img_dir_2.iterdir()):
-                 img_dir = potential_img_dir_2
-             else:
-                 img_dir = json_path.parent
-                 
-             print(f"  - Using image dir: {img_dir}")
              
              # SANITIZE JSON:
              # The JSON might contain relative paths from Label Studio (e.g., ../../media/...).
