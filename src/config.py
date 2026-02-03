@@ -10,6 +10,10 @@ SLICE_WIDTH = 640
 OVERLAP_HEIGHT_RATIO = 0.2
 OVERLAP_WIDTH_RATIO = 0.2
 
+# Hybrid Training (Slices + Global Context)
+HYBRID_TRAINING = True
+GLOBAL_RESIZE_SIZE = 1024
+
 # Paths
 # Default to local relative paths, but can be overridden
 BASE_DIR = Path(os.getcwd())

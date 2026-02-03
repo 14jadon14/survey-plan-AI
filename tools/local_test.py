@@ -55,9 +55,14 @@ def main():
                         pass
     print("[INFO] Dataset optimization complete.")
         
+    print("[INFO] Dataset optimization complete.")
+        
     # 2. Run Training (Minimal Config)
     print("\n[INFO] Running training script (1 Epoch, Batch 2)...")
     train_script = base_dir / "src" / "train.py"
+
+    # --- REGRESSION TEST: Use Hybrid Mode ---
+    # We rely on src/config.py having HYBRID_TRAINING = True by default now.
     
     # Construct command
     # python src/train.py --epochs 1 --batch 2 --data_path custom_data
@@ -76,7 +81,27 @@ def main():
     
     try:
         subprocess.run(cmd, env=env, check=True)
-        print("\n[SUCCESS] Local Test PASSED! Your code is ready for Colab.")
+        
+        # --- VERIFICATION ---
+        print("\n[TEST] Verifying Hybrid Training Outputs...")
+        obb_train = base_dir / "survey_obb_dataset" / "train" / "images"
+        
+        # Check for global images
+        global_imgs = list(obb_train.glob("global_*.jpg")) + list(obb_train.glob("global_*.png"))
+        if not global_imgs:
+            print("[FAIL] Hybrid Training Logic Failed: No 'global_*' images found in output.")
+            sys.exit(1)
+        else:
+            print(f"[PASS] Hybrid Training: Found {len(global_imgs)} global context images.")
+            
+        # Check for slices
+        slice_imgs = list(obb_train.glob("*_slice_*.jpg")) + list(obb_train.glob("*_slice_*.png"))
+        if not slice_imgs:
+             print("[WARN] No slices found? (Maybe dataset too small for slicing or threshold high)")
+        else:
+             print(f"[PASS] Slicing: Found {len(slice_imgs)} sliced images.")
+
+        print("\n[SUCCESS] Local Test PASSED! Hybrid Training logic verified.")
     except subprocess.CalledProcessError as e:
         print(f"\n[ERROR] Local Test FAILED with exit code {e.returncode}.")
         print("   Check the output above for errors.")

@@ -281,7 +281,150 @@ def prepare_data(data_path_arg=None):
         )
         detected_classes.update(classes)
         
+        if config.HYBRID_TRAINING:
+             print(f"  - [Hybrid] Generating Stream B (Global Context)...")
+             global_json = generate_global_views(
+                 json_path=temp_json_path, # Use the clean temp JSON
+                 img_dir=img_dir,
+                 out_img_dir=sliced_out / "global_images", 
+                 target_size=config.GLOBAL_RESIZE_SIZE
+             )
+             
+             print(f"  - [Hybrid] Converting Global to OBB...")
+             # Output to the SAME obb_base folder to merge them
+             convert_to_obb_parallel(
+                 global_json,
+                 obb_base / split_name / "images",
+                 obb_base / split_name / "labels"
+             )
+
     return obb_base, detected_classes
+
+def generate_global_views(json_path, img_dir, out_img_dir, target_size=1024):
+    """
+    Stream B: Generates resized global views of the survey plans.
+    Maintains aspect ratio by padding or resizing? 
+    YOLO OBB handles aspect ratios well, but for consistency with the square slices, 
+    we will resize the longest edge to 'target_size' and pad the other, 
+    OR simply resize to square if distortion is acceptable (Survey plans often rectangular).
+    
+    Given the requirement "resized to imgsz", and to avoid distortion of technical drawings,
+    we'll implement Letterbox resize (fit within box, pad rest) OR simple resize.
+    
+    Simple square resize is safest for standard YOLO training pipelines unless we handle custom inference size.
+    Let's stick to simple resize for now, as SAHI slices are also square.
+    """
+    import cv2
+    import numpy as np
+    
+    print(f"  - [Global] Generating global views at {target_size}x{target_size}...")
+    out_img_dir = Path(out_img_dir)
+    out_img_dir.mkdir(parents=True, exist_ok=True)
+    
+    with open(json_path, 'r') as f:
+        coco = json.load(f)
+        
+    new_images = []
+    
+    # Map old ID to new filename for easier annotation updating
+    # Actually, we can keep the IDs but we must ensure we don't conflict with slices if checking uniqueness?
+    # Slices usually have unique naming. Global images will have "global_" prefix?
+    # No, the user logic says "slicing chops them". 
+    # Let's prefix global images to distinguishing them: "global_filename.jpg"
+    
+    # Create a look-up for image dimensions
+    img_map = {img['id']: img for img in coco['images']}
+    
+    # We need to create a new COCO JSON for these global images
+    global_coco = {'categories': coco['categories'], 'images': [], 'annotations': []}
+    
+    # Track new image IDs to avoid conflicts? 
+    # We can just reset IDs for this separate global JSON, 
+    # because convert_to_obb_parallel processes it independently.
+    
+    processed_count = 0
+    id_map = {} # old_id -> new_id
+    
+    for i, img in enumerate(coco['images']):
+        old_id = img['id']
+        new_id = i + 1
+        id_map[old_id] = new_id
+        
+        fname = img['file_name']
+        src_path = img_dir / fname
+        
+        if not src_path.exists():
+            continue
+            
+        # Read
+        original_img = cv2.imread(str(src_path))
+        if original_img is None:
+            continue
+            
+        h, w = original_img.shape[:2]
+        
+        # Resize
+        resized_img = cv2.resize(original_img, (target_size, target_size))
+        
+        # Save
+        new_fname = f"global_{fname}"
+        dst_path = out_img_dir / new_fname
+        cv2.imwrite(str(dst_path), resized_img)
+        
+        # Add to JSON
+        global_coco['images'].append({
+            'id': new_id,
+            'file_name': new_fname,
+            'width': target_size,
+            'height': target_size
+        })
+        processed_count += 1
+
+    # Process Annotations
+    if 'annotations' in coco:
+        for ann in coco['annotations']:
+            if ann['image_id'] not in id_map:
+                continue
+                
+            old_img_id = ann['image_id']
+            img_info = img_map[old_img_id]
+            orig_w, orig_h = img_info['width'], img_info['height']
+            
+            # Scale Factor
+            # We resized (w, h) -> (target_size, target_size)
+            # So x_scale = target / w, y_scale = target / h
+            sx = target_size / orig_w
+            sy = target_size / orig_h
+            
+            new_ann = ann.copy()
+            new_ann['image_id'] = id_map[old_img_id]
+            new_ann['id'] = len(global_coco['annotations']) + 1
+            
+            # Scale Segmentation
+            if 'segmentation' in ann:
+                # segmentation is list of lists
+                new_segs = []
+                for seg in ann['segmentation']:
+                    poly = np.array(seg).reshape(-1, 2).astype(np.float32)
+                    poly[:, 0] *= sx
+                    poly[:, 1] *= sy
+                    new_segs.append(poly.flatten().tolist())
+                new_ann['segmentation'] = new_segs
+            
+            # Scale Bbox (x, y, w, h)
+            if 'bbox' in ann:
+                x, y, w, h = ann['bbox']
+                new_ann['bbox'] = [x*sx, y*sy, w*sx, h*sy]
+                
+            global_coco['annotations'].append(new_ann)
+
+    # Save Global JSON
+    global_json_path = out_img_dir / "global_coco.json"
+    with open(global_json_path, 'w') as f:
+        json.dump(global_coco, f)
+        
+    print(f"  - [Global] Created {processed_count} global images.")
+    return global_json_path
 
 def create_yaml(obb_dir, classes):
     val_folder = 'validation' if (obb_dir / 'validation').exists() else 'val'

@@ -1,0 +1,34 @@
+names:
+  0: adj lot
+  1: anbls valnum
+  2: area
+  3: azimuth
+  4: calc
+  5: coord table
+  6: counsel stamp
+  7: curve data
+  8: curve table
+  9: dev stamp
+  10: distance
+  11: ip
+  12: key plan
+  13: legend
+  14: line table
+  15: lot number
+  16: nbls signature
+  17: north arrow
+  18: notes
+  19: owner signature
+  20: pin num
+  21: plan date
+  22: plan purpsoe
+  23: plan title
+  24: ribf
+  25: scale bar
+  26: smf
+  27: sms
+  28: sqib
+  29: title data
+path: C:\Users\Jadon\Desktop\SurveyPlan AI\survey_obb_dataset
+train: train/images
+val: validation/images

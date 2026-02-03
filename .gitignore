@@ -32,4 +32,7 @@ custom_data/
 .vscode/
 .idea/
 local_test.log
-survey_plan_obb.yaml
+
+# Model weights
+*.pt
+
