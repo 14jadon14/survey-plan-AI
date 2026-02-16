@@ -59,7 +59,7 @@ def main():
         
     # 2. Run Training (Minimal Config)
     print("\n[INFO] Running training script (1 Epoch, Batch 2)...")
-    train_script = base_dir / "src" / "train.py"
+    train_script = base_dir / "src" / "detection" / "train.py"
 
     # --- REGRESSION TEST: Use Hybrid Mode ---
     # We rely on src/config.py having HYBRID_TRAINING = True by default now.

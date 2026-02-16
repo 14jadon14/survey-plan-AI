@@ -21,16 +21,16 @@ try:
     from src import config
     print(f"[OK] config imported. Batch size: {config.BATCH_SIZE}")
     
-    from src import model
+    from src.detection import model
     # Mock return of YOLO model
     sys.modules["ultralytics"].YOLO.return_value = "MockedYOLO"
     m = model.get_model("test")
     print(f"[OK] model.get_model() returned: {m}")
     
-    from src import dataset
+    from src.detection import dataset
     print("[OK] dataset module imported.")
     
-    from src import train
+    from src.detection import train
     print("[OK] train module imported.")
     
 except ImportError as e:
