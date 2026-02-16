@@ -6,7 +6,3 @@ shapely
 scikit-image
 imagecodecs
 PyYAML
-transformers
-sentencepiece
-accelerate
-pillow

@@ -5,15 +5,15 @@ from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
 import torch
 
-
-def load_model(model_path, conf_thres=0.60):
+def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0.2, conf_thres=0.60):
     """
-    Loads the SAHI AutoDetectionModel.
+    Runs SAHI sliced inference on a set of images.
     """
     print(f"[INFO] Initializing SAHI with model: {model_path}")
+    
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(f"[INFO] Using device: {device}")
-    
+
     try:
         detection_model = AutoDetectionModel.from_pretrained(
             model_type='ultralytics',
@@ -21,38 +21,8 @@ def load_model(model_path, conf_thres=0.60):
             confidence_threshold=conf_thres,
             device=device
         )
-        return detection_model
     except Exception as e:
         print(f"[ERROR] Failed to load model: {e}")
-        return None
-
-def predict_image(detection_model, image_path, slice_wh=1024, overlap_ratio=0.2):
-    """
-    Runs SAHI prediction on a single image.
-    Returns: sahi.prediction.PredictionResult
-    """
-    try:
-        result = get_sliced_prediction(
-            image_path,
-            detection_model,
-            slice_height=slice_wh,
-            slice_width=slice_wh,
-            overlap_height_ratio=overlap_ratio,
-            overlap_width_ratio=overlap_ratio,
-            postprocess_type="NMS",
-            postprocess_match_threshold=0.5
-        )
-        return result
-    except Exception as e:
-        print(f"[ERROR] Failed to process {image_path}: {e}")
-        return None
-
-def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0.2, conf_thres=0.60):
-    """
-    Runs SAHI sliced inference on a set of images.
-    """
-    detection_model = load_model(model_path, conf_thres)
-    if detection_model is None:
         return
 
     if not os.path.exists(output_dir):
@@ -79,9 +49,17 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
         image_name = os.path.basename(image_path)
         print(f"[{i+1}/{len(image_paths)}] Processing {image_name}...")
 
-        result = predict_image(detection_model, image_path, slice_wh, overlap_ratio)
-        
-        if result:
+        try:
+            result = get_sliced_prediction(
+                image_path,
+                detection_model,
+                slice_height=slice_wh,
+                slice_width=slice_wh,
+                overlap_height_ratio=overlap_ratio,
+                overlap_width_ratio=overlap_ratio,
+                postprocess_type="NMS",
+                postprocess_match_threshold=0.5
+            )
 
             # Export visualization
             export_path = os.path.join(output_dir, "vis")
@@ -94,6 +72,9 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
             
             # Optional: Save standard labels if needed (not in original requirement but good practice)
             # result.export_prediction_visuals(output_dir, file_name=image_name)
+
+        except Exception as e:
+            print(f"[ERROR] Failed to process {image_name}: {e}")
 
     print(f"[INFO] Inference complete. Results saved to {output_dir}")
 

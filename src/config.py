@@ -4,7 +4,7 @@ import os
 # Hyperparameters
 BATCH_SIZE = 16
 IMGSZ = 640
-EPOCHS = 3
+EPOCHS = 10
 SLICE_HEIGHT = 640
 SLICE_WIDTH = 640
 OVERLAP_HEIGHT_RATIO = 0.2
@@ -26,8 +26,3 @@ RUNS_DIR = BASE_DIR / "runs"
 # Model
 MODEL_NAME = "yolo26m-obb.pt"
 PROJECT_NAME = "survey_plan_obb_run"
-
-# Donut Parsing Config
-DONUT_MODEL_PATH = "naver-clova-ix/donut-base"
-PARSING_TASK_PROMPT = "" # Base model does not use specific task start token by default
-

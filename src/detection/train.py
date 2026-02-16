@@ -1,6 +1,5 @@
 import argparse
-from src import config
-from src.detection import dataset, model
+from src import config, dataset, model
 
 def main():
     parser = argparse.ArgumentParser(description="Train YOLO Model for Survey Plans")

@@ -59,7 +59,7 @@ def main():
         
     # 2. Run Training (Minimal Config)
     print("\n[INFO] Running training script (1 Epoch, Batch 2)...")
-    train_script = base_dir / "src" / "detection" / "train.py"
+    train_script = base_dir / "src" / "train.py"
 
     # --- REGRESSION TEST: Use Hybrid Mode ---
     # We rely on src/config.py having HYBRID_TRAINING = True by default now.
@@ -106,63 +106,6 @@ def main():
         print(f"\n[ERROR] Local Test FAILED with exit code {e.returncode}.")
         print("   Check the output above for errors.")
         sys.exit(e.returncode)
-
-    # Run the Verification Logic
-    print("Running Pipeline Verification...")
-    try:
-        sys.path.append(os.getcwd())
-        from src.pipeline import SurveyPipeline
-        import numpy as np
-        import cv2
-        import json
-        
-        pipeline = SurveyPipeline()
-        
-        # Create a test image/dummy
-        img_path = "local_test_image.jpg"
-        if not os.path.exists(img_path):
-             img = 255 * np.ones((500, 500, 3), dtype=np.uint8)
-             cv2.rectangle(img, (100, 100), (200, 200), (0,0,0), 2)
-             cv2.imwrite(img_path, img)
-             
-        results = pipeline.process_image(img_path)
-        
-        print(f"Pipeline processed image: {img_path}")
-        print(f"Detections: {len(results['detections'])}")
-        
-        # Verify Output Structure
-        for det in results['detections']:
-            # Check parsed_data
-            if isinstance(det.get('parsed_data'), dict):
-                print(f"[PASS] parsed_data is valid JSON: {det['parsed_data']}")
-            else:
-                print(f"[WARN] parsed_data is not a valid dict: {det.get('parsed_data')}")
-                
-            # Verify angle
-            if 'angle' in det:
-                 print(f"[PASS] Angle present: {det['angle']}")
-            else:
-                 print("[FAIL] Angle missing")
-                 
-        if os.path.exists(img_path):
-            os.remove(img_path)
-            
-        print("Pipeline verification complete.")
-
-    except ImportError as e:
-        print(f"Pipeline import failed: {e}")
-        # Try adjusting path relative to script if cwd is wrong
-        try:
-            sys.path.append(str(Path(__file__).parent.parent))
-            from src.pipeline import SurveyPipeline
-            print("Second import attempt successful.")
-        except Exception as e2:
-             print(f"Second import attempt failed: {e2}")
-
-    except Exception as e:
-        print(f"Pipeline execution failed: {e}")
-        import traceback
-        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
