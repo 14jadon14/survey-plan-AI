@@ -1,7 +1,7 @@
 import re
 import torch
 
-def run_parsing(model, processor, image, device="cpu", task_prompt="<s_cord-v2>"):
+def run_parsing(model, processor, image, device="cpu", task_prompt="<s_survey_parsing>"):
     """
     Runs inference on a single image (crop) and returns the parsed JSON.
     """

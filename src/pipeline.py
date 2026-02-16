@@ -58,12 +58,32 @@ class SurveyPipeline:
                     score = obj.score.value
                     label = obj.category.name
                     
-                    # Check for OBB angle if available (SAHI standard usually doesn't provide it)
-                    # We'll default to 0 for now.
+                    # Check for OBB angle
+                    # SAHI ObjectPrediction might not expose angle directly in standard bbox.
+                    # If using YOLOv8-OBB with SAHI, it often returns a mask (polygon) or we need to check extra attributes.
                     angle = 0
-                    if hasattr(obj, 'mask') and obj.mask:
-                        # logical place to check if SAHI supported specialized masks/OBB
-                        pass
+                    if obj.mask:
+                        # If a mask/polygon is available, compute the OBB angle
+                        import cv2
+                        import numpy as np
+                        try:
+                            # obj.mask.to_mask() returns a binary mask or checking if it's a segmentation dict
+                            # SAHI's Mask object strategies vary. Let's assume we can get a polygon or binary mask.
+                            # If it's a boolean mask:
+                            if hasattr(obj.mask, 'bool_mask'):
+                                mask_arr = obj.mask.bool_mask.astype(np.uint8)
+                                contours, _ = cv2.findContours(mask_arr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                                if contours:
+                                    largest_cnt = max(contours, key=cv2.contourArea)
+                                    rect = cv2.minAreaRect(largest_cnt)
+                                    # rect is ((cx, cy), (w, h), angle)
+                                    angle = rect[2]
+                        except Exception as e:
+                            print(f"[WARN] Failed to extract angle from mask: {e}")
+                    
+                    # Alternatively check for 'angle' in extra_data if populated by custom inference
+                    if hasattr(obj, 'extra_data') and obj.extra_data and 'angle' in obj.extra_data:
+                        angle = obj.extra_data['angle']
 
                     # 2. Rectify & Crop
                     # Calculate center, w, h from box
@@ -83,11 +103,45 @@ class SurveyPipeline:
                         "parsed_data": None
                     }
                     
+
                     if self.donut_model:
-                         # Construct prompt: <s_{label}>
-                         # Sanitize label just in case
+                         # Construct prompt using project-specific token
+                         # If detections have specific classes (e.g. 'bearing'), use them.
+                         # If generic 'survey_item', use '<s_survey_parsing>'.
+                         
                          safe_label = label.lower().replace(" ", "_")
+                         
+                         # Project-specific task token
                          task_prompt = f"<s_{safe_label}>"
+                         
+                         # If the label is generic, we can enforce a specific start token
+                         # user requested "replace ... with a specialized project token, such as <s_survey_parsing>"
+                         # We'll prepend or use it as the base. 
+                         # Let's assume we want <s_survey_parsing> to be the start, and maybe class info follows?
+                         # Or simply: if the model is fine-tuned on <s_survey_parsing>, we should use that.
+                         # But since we have multi-class (bearing, distance), we likely want <s_bearing> etc.
+                         # However, to explicitly satisfy the user's request:
+                         # "replace the generic <s_cord-v2> ... with ... <s_survey_parsing>"
+                         
+                         # If we are parsing a specific field, maybe we use <s_survey_parsing> as the task, 
+                         # and the model outputs {class: value}. 
+                         # Let's pivot to using <s_survey_parsing> as the default for unknown or generic items,
+                         # but keep class specific if valuable.
+                         # Actually, let's just use <s_survey_parsing> for everything if that's the trained protocol,
+                         # or stick to the dynamic one if we are confident.
+                         # Given the prompt, I will set the default to <s_survey_parsing> in the inference call,
+                         # OR pass it here.
+                         
+                         # The user likely implies the model is/will be trained on <s_survey_parsing>.
+                         # I'll use that as the base prompt.
+                         task_prompt = "<s_survey_parsing>"
+                         
+                         # If we really want class-specific, we could do "<s_survey_parsing> <s_bearing>" 
+                         # but usually it's just one start token.
+                         # I will set it to <s_survey_parsing> as requested.
+                         
+                         # Optimization: If we have the label, we can add it to the detection entry
+                         # but pass the generic prompt to the model if it handles all types.
                          
                          print(f"  - Parsing detected {label} with prompt {task_prompt}...")
                          
