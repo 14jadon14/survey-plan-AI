@@ -34,23 +34,30 @@ def main():
     import torch
     device = 0 if torch.cuda.is_available() else 'cpu'
     if device == 'cpu':
-        print("⚠️  CUDA not available. Training on CPU will be slow.")
+        print("[WARN]  CUDA not available. Training on CPU will be slow.")
     else:
-        print(f"✅  CUDA available: {torch.cuda.get_device_name(0)}")
+        print(f"[INFO]  CUDA available: {torch.cuda.get_device_name(0)}")
 
-    results = yolo.train(
-        data=str(yaml_path),
-        epochs=args.epochs,
-        imgsz=args.imgsz,
-        batch=args.batch,
-        name=config.PROJECT_NAME,
-        device=device,
-        workers=8 if IN_COLAB else 0,
-        degrees=45,
-        fliplr=0.0,
-        cache=True,
-        cos_lr=True
-    )
+    try:
+        results = yolo.train(
+            data=str(yaml_path),
+            epochs=args.epochs,
+            imgsz=args.imgsz,
+            batch=args.batch,
+            name=config.PROJECT_NAME,
+            device=device,
+            workers=8 if IN_COLAB else 0,
+            degrees=45,
+            fliplr=0.0,
+            cache=True,
+            cos_lr=True
+        )
+    except Exception as e:
+        # Sanitize error message to remove emojis which crash Colab/Jupyter
+        error_msg = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"[ERROR] Training failed: {error_msg}")
+        # Re-raise nicely or exit? Exit to avoid ugly tracebacks in notebook loop
+        exit(1)
     
     print("[INFO] Training complete!")
 
