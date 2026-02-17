@@ -96,12 +96,13 @@ def prepare_data(data_path_arg=None):
     # Determine paths
     raw_data_path = Path(data_path_arg) if data_path_arg else config.CUSTOM_DATA_DIR
     
-    print(f"[INFO] Preparing data from: {raw_data_path}")
+    # Safe print
+    print(f"[INFO] Preparing data from: {repr(str(raw_data_path))}")
     
     # 1. Unzip Logic (Handled externally in Colab, but check locally)
     # If raw_data_path is expected to be populated but isn't, warn or fail.
     if not raw_data_path.exists():
-        print(f"[WARN] Warning: Data path {raw_data_path} does not exist. Assuming it will be mounted or unzipped.")
+        print(f"[WARN] Warning: Data path {repr(str(raw_data_path))} does not exist. Assuming it will be mounted or unzipped.")
         
     # 2. Train/Val Split
     # We essentially re-implement the logic or call the script if needed.
@@ -129,21 +130,6 @@ def prepare_data(data_path_arg=None):
     # The split script creates: 'train/images', 'validation/images'
     # We want to process these.
     
-    # Find JSON annotations. Usually in raw_data_path/train/labels.json or similar?
-    # Wait, the original notebook expected 'train/_annotations.coco.json' inside the splits?
-    # Actually, the original notebook unzipped to 'custom_data', then ran split.
-    # The split script MOVES images. It doesn't handle JSONs usually?
-    # Checked original notebook: The user has COCO json.
-    
-    # Let's assume the standard Roboflow/CVAT export structure where existing JSONs are used.
-    # In the notebook, `found_img_dir` was detected.
-    
-    # For this refactor, let's assume the user provides a direct path to the JSON if it exists,
-    # OR we look for it in standard locations.
-    
-    # Re-reading notebook logic:
-    # splits = {'train': ...json_path, 'val': ...json_path}
-    
     # Let's search for JSONs in the train/val directories
     splits = {}
     for split_name in ['train', 'validation']:
@@ -161,8 +147,6 @@ def prepare_data(data_path_arg=None):
         if master_jsons:
              master_json = master_jsons[0]
              print(f"[INFO] Found master JSON: {master_json.name}. Will attempt to use it for both splits.")
-             # We assume the images have been moved to train/images and validation/images by step 2
-             # We can re-use the same JSON path for both, assuming the slicer just skips missing images.
              
              # Verify which split folders actually exist with images
              # Check raw_data_path (custom_data) AND config.BASE_DIR/data (train_val_split default)
@@ -173,12 +157,9 @@ def prepare_data(data_path_arg=None):
              if (raw_data_path / "val").exists() or (config.BASE_DIR / "data" / "val").exists() or Path("/content/data/val").exists():
                  splits['val'] = master_json
 
-             # If splits is STILL empty, it implies checking failed but we have a master JSON.
-             # We should probably trust the master_json for the class list fallback at least.
-
         else:
              print("[ERROR] No JSON annotations found in data directory!")
-             return obb_base, {}
+             return config.OBB_DATA_DIR, {}
 
     # Slicing
     sliced_base = config.SLICED_DATA_DIR
@@ -189,12 +170,9 @@ def prepare_data(data_path_arg=None):
         sliced_out = sliced_base / split_name
         sliced_base.mkdir(parents=True, exist_ok=True) # Ensure parent exists for temp file
 
-        
         temp_json_path = sliced_out.parent / f"temp_clean_{split_name}.json"
 
         # Smart Image Dir Detection
-        # If train_val_split moved images, they are in raw_data_path/split_name/images
-        # OR they are in ./data/split_name/images (hardcoded in the script)
         potential_img_dir = raw_data_path / split_name / "images"
         potential_img_dir_2 = config.BASE_DIR / "data" / split_name / "images"
         potential_img_dir_3 = Path("/content/data") / split_name / "images"
@@ -208,20 +186,16 @@ def prepare_data(data_path_arg=None):
         else:
             img_dir = json_path.parent
             
-        print(f"  - Using image dir: {img_dir}")
+        print(f"  - Using image dir: {repr(str(img_dir))}")
 
         # Check cache
         if sliced_out.exists() and len(list(sliced_out.glob("*.json"))) > 0 and temp_json_path.exists():
-             print(f"  - Found existing slice at {sliced_out}")
+             print(f"  - Found existing slice at {repr(str(sliced_out))}")
              sliced_coco_path = str(list(sliced_out.glob("sliced_*_coco.json"))[0])
         else:
-             print(f"  - Slicing to {sliced_out}...")
+             print(f"  - Slicing to {repr(str(sliced_out))}...")
              
-             # SANITIZE JSON:
-             # The JSON might contain relative paths from Label Studio (e.g., ../../media/...).
-             # We need to strip these so SAHI looks for the basename in 'img_dir'.
-             import tempfile
-             
+             # SANITIZE JSON
              with open(json_path, 'r') as jf:
                  coco_data = json.load(jf)
              
@@ -244,20 +218,19 @@ def prepare_data(data_path_arg=None):
              # DEBUG: If filtering removed everything, show why
              if not filtered_images and coco_data['images']:
                  print(f"  - [ERROR] Filter removed all images! Debug info:")
-                 print(f"    - Available on disk (first 5): {list(available_imgs)[:5]}")
-                 print(f"    - JSON filenames (first 5 processed): {[str(img['file_name']).replace('\\', '/').split('/')[-1] for img in coco_data['images'][:5]]}")
-                 print(f"    - JSON raw filenames (first 5): {[img['file_name'] for img in coco_data['images'][:5]]}")
+                 # Safe printing of debug info
+                 print(f"    - Available on disk (first 5): {[repr(p) for p in list(available_imgs)[:5]]}")
              
              coco_data['images'] = filtered_images
              
-             # Filter annotations (optional but cleaner)
+             # Filter annotations
              if 'annotations' in coco_data:
                  coco_data['annotations'] = [
                      ann for ann in coco_data['annotations'] 
                      if ann['image_id'] in kept_ids
                  ]
                  
-             print(f"  - Filtered JSON: {len(filtered_images)} images found in {img_dir}")
+             print(f"  - Filtered JSON: {len(filtered_images)} images found in {repr(str(img_dir))}")
                  
              # Save to temp file
              temp_json_path = sliced_out.parent / f"temp_clean_{split_name}.json"
@@ -329,16 +302,6 @@ def prepare_data(data_path_arg=None):
 def generate_global_views(json_path, img_dir, out_img_dir, target_size=1024):
     """
     Stream B: Generates resized global views of the survey plans.
-    Maintains aspect ratio by padding or resizing? 
-    YOLO OBB handles aspect ratios well, but for consistency with the square slices, 
-    we will resize the longest edge to 'target_size' and pad the other, 
-    OR simply resize to square if distortion is acceptable (Survey plans often rectangular).
-    
-    Given the requirement "resized to imgsz", and to avoid distortion of technical drawings,
-    we'll implement Letterbox resize (fit within box, pad rest) OR simple resize.
-    
-    Simple square resize is safest for standard YOLO training pipelines unless we handle custom inference size.
-    Let's stick to simple resize for now, as SAHI slices are also square.
     """
     import cv2
     import numpy as np
@@ -350,23 +313,8 @@ def generate_global_views(json_path, img_dir, out_img_dir, target_size=1024):
     with open(json_path, 'r') as f:
         coco = json.load(f)
         
-    new_images = []
-    
-    # Map old ID to new filename for easier annotation updating
-    # Actually, we can keep the IDs but we must ensure we don't conflict with slices if checking uniqueness?
-    # Slices usually have unique naming. Global images will have "global_" prefix?
-    # No, the user logic says "slicing chops them". 
-    # Let's prefix global images to distinguishing them: "global_filename.jpg"
-    
-    # Create a look-up for image dimensions
     img_map = {img['id']: img for img in coco['images']}
-    
-    # We need to create a new COCO JSON for these global images
     global_coco = {'categories': coco['categories'], 'images': [], 'annotations': []}
-    
-    # Track new image IDs to avoid conflicts? 
-    # We can just reset IDs for this separate global JSON, 
-    # because convert_to_obb_parallel processes it independently.
     
     processed_count = 0
     id_map = {} # old_id -> new_id
@@ -417,8 +365,6 @@ def generate_global_views(json_path, img_dir, out_img_dir, target_size=1024):
             orig_w, orig_h = img_info['width'], img_info['height']
             
             # Scale Factor
-            # We resized (w, h) -> (target_size, target_size)
-            # So x_scale = target / w, y_scale = target / h
             sx = target_size / orig_w
             sy = target_size / orig_h
             
