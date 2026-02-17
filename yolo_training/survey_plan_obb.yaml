@@ -29,6 +29,6 @@ names:
   27: sms
   28: sqib
   29: title data
-path: C:\Users\Jadon\Desktop\SurveyPlan AI\survey_obb_dataset
+path: C:\Users\Jadon\Desktop\SurveyPlan AI\yolo_training\survey_obb_dataset
 train: train/images
 val: validation/images

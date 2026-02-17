@@ -119,7 +119,7 @@ def prepare_data(data_path_arg=None):
              urllib.request.urlretrieve("https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py", "train_val_split.py")
         
         # Run split
-        cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct=0.9'
+        cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct=0.7'
         os.system(cmd)
         
     # 3. Slicing & OBB Conversion

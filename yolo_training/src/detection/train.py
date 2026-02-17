@@ -45,7 +45,11 @@ def main():
         batch=args.batch,
         name=config.PROJECT_NAME,
         device=device,
-        workers=8 if IN_COLAB else 0
+        workers=8 if IN_COLAB else 0,
+        degrees=45,
+        fliplr=0.0,
+        cache=True,
+        cos_lr=True
     )
     
     print("[INFO] Training complete!")
