@@ -3,10 +3,10 @@ import os
 
 # Hyperparameters
 BATCH_SIZE = 16
-IMGSZ = 640
+IMGSZ = 1024
 EPOCHS = 10
-SLICE_HEIGHT = 640
-SLICE_WIDTH = 640
+SLICE_HEIGHT = 1024
+SLICE_WIDTH = 1024
 OVERLAP_HEIGHT_RATIO = 0.2
 OVERLAP_WIDTH_RATIO = 0.2
 
@@ -24,5 +24,5 @@ OBB_DATA_DIR = BASE_DIR / "survey_obb_dataset"
 RUNS_DIR = BASE_DIR / "runs"
 
 # Model
-MODEL_NAME = "yolo26m-obb.pt"
+MODEL_NAME = "yolo26l-obb.pt"
 PROJECT_NAME = "survey_plan_obb_run"
