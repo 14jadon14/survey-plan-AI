@@ -37,48 +37,14 @@ def run_custom(image_path=None, bboxes=None, json_path=None):
                     for i, item in enumerate(data):
                         img_p = item.get("image_path", image_path)
                         bbox = item.get("bbox")
-                        
                         if not img_p:
                             print(f"Skipping item {i}: No image path provided.")
                             continue
                             
-                        # Robust path handling
+                        # Basic check
                         if not os.path.exists(img_p):
-                            # Try to find the file in common locations
-                            filename = os.path.basename(img_p)
-                            potential_paths = [
-                                os.path.join(os.getcwd(), filename),
-                                os.path.join("/content/custom_data", filename), # Colab specific
-                                os.path.join("/content/data", filename),        # Colab specific
-                                os.path.join("data", filename),
-                                # Recursive search in custom_data if needed? 
-                                # Let's try to find it in the same directory as the JSON if applicable
-                                os.path.join(os.path.dirname(json_path), filename)
-                            ]
-                            
-                            found = False
-                            for p in potential_paths:
-                                if os.path.exists(p):
-                                    print(f"[WARN] Image not found at {img_p}. Found at {p}. using that.")
-                                    img_p = p
-                                    found = True
-                                    break
-                            
-                            if not found:
-                                # Try one more fallback: check if it's in a subdirectory of custom_data matching the original parent
-                                # e.g. orig: /content/data/validation/images/img.jpg
-                                # new: /content/custom_data/validation/images/img.jpg
-                                # We can try to replace /content/data with /content/custom_data
-                                if "/content/data" in img_p:
-                                    new_p = img_p.replace("/content/data", "/content/custom_data")
-                                    if os.path.exists(new_p):
-                                         print(f"[WARN] Image not found at {img_p}. Found at {new_p}. using that.")
-                                         img_p = new_p
-                                         found = True
-                                
-                            if not found:
-                                print(f"[ERROR] Image not found at {img_p} and fallback search failed.")
-                                continue
+                            print(f"[ERROR] Image not found at {img_p}")
+                            continue
 
                         print(f"\nProcessing item {i}: {img_p}")
                         try:
