@@ -294,11 +294,24 @@ def prepare_data(data_path_arg=None):
              
              print(f"  - [Hybrid] Converting Global to OBB...")
              # Output to the SAME obb_base folder to merge them
-             convert_to_obb_parallel(
+             classes_global = convert_to_obb_parallel(
                  global_json,
                  obb_base / split_name / "images",
                  obb_base / split_name / "labels"
              )
+             detected_classes.update(classes_global)
+             
+    # 4. Final Safety Check
+    if not detected_classes:
+        # If we failed to detect classes from the conversion (maybe no annotations?),
+        # try to pull them from the raw JSON directly as a fallback.
+        if splits:
+            # Use the first available JSON to get categories
+            first_json = list(splits.values())[0]
+            with open(first_json, 'r') as f:
+                data = json.load(f)
+                detected_classes = {c['id']: c['name'] for c in data.get('categories', [])}
+                print(f"[INFO] Fallback: Loaded {len(detected_classes)} classes from JSON header.")
 
     return obb_base, detected_classes
 
