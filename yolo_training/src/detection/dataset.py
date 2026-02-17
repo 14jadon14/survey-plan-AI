@@ -166,12 +166,16 @@ def prepare_data(data_path_arg=None):
              
              # Verify which split folders actually exist with images
              # Check raw_data_path (custom_data) AND config.BASE_DIR/data (train_val_split default)
-             if (raw_data_path / "train").exists() or (config.BASE_DIR / "data" / "train").exists():
+             if (raw_data_path / "train").exists() or (config.BASE_DIR / "data" / "train").exists() or Path("/content/data/train").exists():
                  splits['train'] = master_json
-             if (raw_data_path / "validation").exists() or (config.BASE_DIR / "data" / "validation").exists():
+             if (raw_data_path / "validation").exists() or (config.BASE_DIR / "data" / "validation").exists() or Path("/content/data/validation").exists():
                  splits['validation'] = master_json
-             if (raw_data_path / "val").exists() or (config.BASE_DIR / "data" / "val").exists():
+             if (raw_data_path / "val").exists() or (config.BASE_DIR / "data" / "val").exists() or Path("/content/data/val").exists():
                  splits['val'] = master_json
+
+             # If splits is STILL empty, it implies checking failed but we have a master JSON.
+             # We should probably trust the master_json for the class list fallback at least.
+
         else:
              print("[ERROR] No JSON annotations found in data directory!")
              return obb_base, {}
@@ -193,11 +197,14 @@ def prepare_data(data_path_arg=None):
         # OR they are in ./data/split_name/images (hardcoded in the script)
         potential_img_dir = raw_data_path / split_name / "images"
         potential_img_dir_2 = config.BASE_DIR / "data" / split_name / "images"
+        potential_img_dir_3 = Path("/content/data") / split_name / "images"
         
         if potential_img_dir.exists() and any(potential_img_dir.iterdir()):
             img_dir = potential_img_dir
         elif potential_img_dir_2.exists() and any(potential_img_dir_2.iterdir()):
             img_dir = potential_img_dir_2
+        elif potential_img_dir_3.exists() and any(potential_img_dir_3.iterdir()):
+            img_dir = potential_img_dir_3
         else:
             img_dir = json_path.parent
             
@@ -305,10 +312,14 @@ def prepare_data(data_path_arg=None):
     if not detected_classes:
         # If we failed to detect classes from the conversion (maybe no annotations?),
         # try to pull them from the raw JSON directly as a fallback.
+        fallback_json = None
         if splits:
-            # Use the first available JSON to get categories
-            first_json = list(splits.values())[0]
-            with open(first_json, 'r') as f:
+            fallback_json = list(splits.values())[0]
+        elif 'master_json' in locals():
+            fallback_json = master_json
+            
+        if fallback_json:
+            with open(fallback_json, 'r') as f:
                 data = json.load(f)
                 detected_classes = {c['id']: c['name'] for c in data.get('categories', [])}
                 print(f"[INFO] Fallback: Loaded {len(detected_classes)} classes from JSON header.")
