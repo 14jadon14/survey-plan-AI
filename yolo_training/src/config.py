@@ -26,3 +26,22 @@ RUNS_DIR = BASE_DIR / "runs"
 # Model
 MODEL_NAME = "yolo26m-obb.pt" 
 PROJECT_NAME = "survey_plan_obb_run"
+
+# Inference / Document Parsing Integration
+SAVE_JSON_FOR_DOC_PARSING = True
+# Default to a generic Google Drive path, user can update.
+# Windows typical path: "G:/My Drive/SurveyPlan/detected_assets.json"
+GOOGLE_DRIVE_PATH = os.path.join(os.path.expanduser("~"), "Google Drive") # Placeholder
+if not os.path.exists(GOOGLE_DRIVE_PATH):
+    # Fallback if Google Drive not found strictly
+    GOOGLE_DRIVE_PATH = RUNS_DIR 
+
+JSON_OUTPUT_FILENAME = "marketing_plan_assets.json"
+JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
+
+# Labels to consider as text for document parsing
+# Add labels here that should be included in the JSON output
+# Example: ["text_block", "header", "table"]
+TEXT_LABELS = ["plan title", "lot number", "adj lot", "area", "coord table", "curve table", "line table", "notes", "curve data", "plan purpsoe", "title data", "plan date", "azimuth", "distance", "street", "text", "file num"] # Default list, user should update based on their model classes
+
+
