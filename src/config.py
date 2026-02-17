@@ -7,8 +7,8 @@ IMGSZ = 1024
 EPOCHS = 10
 SLICE_HEIGHT = 1024
 SLICE_WIDTH = 1024
-OVERLAP_HEIGHT_RATIO = 0.2
-OVERLAP_WIDTH_RATIO = 0.2
+OVERLAP_HEIGHT_RATIO = 0.3
+OVERLAP_WIDTH_RATIO = 0.3
 
 # Hybrid Training (Slices + Global Context)
 HYBRID_TRAINING = True
@@ -24,5 +24,5 @@ OBB_DATA_DIR = BASE_DIR / "survey_obb_dataset"
 RUNS_DIR = BASE_DIR / "runs"
 
 # Model
-MODEL_NAME = "yolo26l-obb.pt"
+MODEL_NAME = "yolo26m-obb.pt"
 PROJECT_NAME = "survey_plan_obb_run"
