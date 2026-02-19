@@ -49,7 +49,10 @@ def main():
         degrees=45,
         fliplr=0.0,
         cache=True,
-        cos_lr=True
+        cos_lr=True,
+        persistence=True,
+        amp=True,
+        close_mosaic=10
     )
     
     print("[INFO] Training complete!")

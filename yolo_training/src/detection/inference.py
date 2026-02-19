@@ -74,7 +74,8 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
                 slice_width=slice_wh,
                 overlap_height_ratio=overlap_ratio,
                 overlap_width_ratio=overlap_ratio,
-                postprocess_type="NMS",
+                perform_standard_prediction=True,
+                postprocess_type="NMM",
                 postprocess_match_threshold=0.5
             )
 

@@ -33,7 +33,8 @@ SAVE_JSON_FOR_DOC_PARSING = True
 # Windows typical path: "G:/My Drive/SurveyPlan/detected_assets.json"
 GOOGLE_DRIVE_PATH = os.path.join(os.path.expanduser("~"), "Google Drive") # Placeholder
 if not os.path.exists(GOOGLE_DRIVE_PATH):
-    # Fallback if Google Drive not found strictly
+    # Fallback if Google Drive not found 
+
     GOOGLE_DRIVE_PATH = RUNS_DIR 
 
 JSON_OUTPUT_FILENAME = "marketing_plan_assets.json"
