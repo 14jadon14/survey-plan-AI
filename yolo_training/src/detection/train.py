@@ -50,7 +50,6 @@ def main():
         fliplr=0.0,
         cache=True,
         cos_lr=True,
-        persistence=True,
         amp=True,
         close_mosaic=10
     )
