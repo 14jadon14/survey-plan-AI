@@ -285,18 +285,26 @@ def prepare_data(data_path_arg=None):
     if not detected_classes:
         # If we failed to detect classes from the conversion (maybe no annotations?),
         # try to pull them from the raw JSON directly as a fallback.
+        print("[WARN] detected_classes is empty after processing. Attempting fallback...")
         fallback_json = None
         if splits:
             fallback_json = list(splits.values())[0]
         elif 'master_json' in locals():
             fallback_json = master_json
-            
+        
         if fallback_json:
-            with open(fallback_json, 'r') as f:
-                data = json.load(f)
-                detected_classes = {c['id']: c['name'] for c in data.get('categories', [])}
-                print(f"[INFO] Fallback: Loaded {len(detected_classes)} classes from JSON header.")
+            try:
+                with open(fallback_json, 'r') as f:
+                    data = json.load(f)
+                    detected_classes = {c['id']: c['name'] for c in data.get('categories', [])}
+                print(f"[INFO] Fallback: Loaded {len(detected_classes)} classes from JSON header: {detected_classes}")
+            except Exception as e:
+                print(f"[ERROR] Fallback failed: {e}")
 
+    if not detected_classes:
+        raise ValueError(f"Could not detect any classes from dataset at {raw_data_path}. Please check your JSON 'categories' field.")
+
+    print(f"[INFO] Final Detected Classes: {detected_classes}")
     return obb_base, detected_classes
 
 def generate_global_views(json_path, img_dir, out_img_dir, target_size=1024):
