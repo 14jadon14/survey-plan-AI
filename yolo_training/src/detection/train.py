@@ -14,11 +14,15 @@ def main():
     # 1. Prepare Data
     obb_dir, classes = dataset.prepare_data(args.data_path)
     print(f"[INFO] Data prepared at: {repr(str(obb_dir))}")
-    print(f"[INFO] Classes: {classes}")
+    print(f"[INFO] Classes detected: {classes}")
+    if not classes:
+        print("[ERROR] Classes dictionary is EMPTY! This will cause training to fail.")
     
     # 2. Config
     yaml_path = dataset.create_yaml(obb_dir, classes)
     print(f"[INFO] Config saved to: {repr(str(yaml_path))}")
+    with open(yaml_path, 'r') as f:
+        print(f"[DEBUG] YAML Content:\n{f.read()}")
     
     # 3. Model
     yolo = model.get_model()
