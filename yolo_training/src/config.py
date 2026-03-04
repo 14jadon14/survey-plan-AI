@@ -4,7 +4,7 @@ import os
 # Hyperparameters
 BATCH_SIZE = 32
 IMGSZ = 800
-EPOCHS = 20
+EPOCHS = 60
 SLICE_HEIGHT = 1280
 SLICE_WIDTH = 1280
 OVERLAP_HEIGHT_RATIO = 0.4
@@ -15,13 +15,13 @@ AUG_FLIPLR = 0.0
 CACHE_RAM = True
 COS_LR = True
 AMP = True
-CLOSE_MOSAIC_EPOCHS = 4
+CLOSE_MOSAIC_EPOCHS = 10
 PATIENCE = 20
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.60
+CONF_THRESHOLD = 0.40
 SAHI_POSTPROCESS_TYPE = "NMM"
-SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
 POSTPROCESS_CLASS_AGNOSTIC = True   # Merge overlapping boxes regardless of class
