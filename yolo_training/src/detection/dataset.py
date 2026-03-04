@@ -141,39 +141,56 @@ def _load_class_names(raw_data_path, search_dirs):
     max_id = max(all_class_ids)
     print(f"[INFO] Found {len(all_class_ids)} unique class IDs in labels (max ID: {max_id})")
     
-    # Step 2: Try to load names from data.yaml
-    yaml_names = None
+    # Step 2: Try to load names from classes.txt (Label Studio export) or data.yaml
+    class_names = None
+    
+    # 2a. Check for classes.txt (Label Studio YOLOv8 OBB export)
     for loc in [raw_data_path] + search_dirs + [raw_data_path.parent]:
-        yaml_path = loc / "data.yaml"
-        if yaml_path.exists():
+        classes_txt = loc / "classes.txt"
+        if classes_txt.exists():
             try:
-                with open(yaml_path, 'r') as f:
-                    data_yaml = yaml.safe_load(f)
-                names = data_yaml.get('names', [])
+                with open(classes_txt, 'r') as f:
+                    names = [line.strip() for line in f if line.strip()]
                 if names:
-                    if isinstance(names, dict):
-                        yaml_names = {int(k): str(v) for k, v in names.items()}
-                    else:
-                        yaml_names = {i: str(n) for i, n in enumerate(names)}
-                    print(f"[INFO] Loaded {len(yaml_names)} class names from {yaml_path}")
+                    class_names = {i: name for i, name in enumerate(names)}
+                    print(f"[INFO] Loaded {len(class_names)} class names from {classes_txt}")
                     break
             except Exception as e:
-                print(f"[WARN] Found data.yaml at {yaml_path} but failed to parse: {e}")
+                print(f"[WARN] Found classes.txt at {classes_txt} but failed to read: {e}")
+    
+    # 2b. Fallback: Check for data.yaml
+    if not class_names:
+        for loc in [raw_data_path] + search_dirs + [raw_data_path.parent]:
+            yaml_path = loc / "data.yaml"
+            if yaml_path.exists():
+                try:
+                    with open(yaml_path, 'r') as f:
+                        data_yaml = yaml.safe_load(f)
+                    names = data_yaml.get('names', [])
+                    if names:
+                        if isinstance(names, dict):
+                            class_names = {int(k): str(v) for k, v in names.items()}
+                        else:
+                            class_names = {i: str(n) for i, n in enumerate(names)}
+                        print(f"[INFO] Loaded {len(class_names)} class names from {yaml_path}")
+                        break
+                except Exception as e:
+                    print(f"[WARN] Found data.yaml at {yaml_path} but failed to parse: {e}")
     
     # Step 3: Build categories covering ALL IDs from 0 to max_id
     # This ensures no KeyError when SAHI looks up any annotation's category_id
     cats = []
     for cid in range(max_id + 1):
-        if yaml_names and cid in yaml_names:
-            name = yaml_names[cid]
+        if class_names and cid in class_names:
+            name = class_names[cid]
         else:
             name = f'class_{cid}'
         cats.append({'id': cid, 'name': name, 'supercategory': 'none'})
     
-    if yaml_names:
-        print(f"[INFO] Built {len(cats)} categories from data.yaml names")
+    if class_names:
+        print(f"[INFO] Built {len(cats)} categories with real class names")
     else:
-        print(f"[INFO] Built {len(cats)} categories with placeholder names (no data.yaml found)")
+        print(f"[INFO] Built {len(cats)} categories with placeholder names (no classes.txt or data.yaml found)")
     
     return cats
 
