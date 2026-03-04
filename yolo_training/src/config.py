@@ -11,6 +11,19 @@ OVERLAP_HEIGHT_RATIO = 0.4
 OVERLAP_WIDTH_RATIO = 0.4
 ROTATION_DEGREES = 0.0 # Augmentation parameter
 
+# Label Mapping System
+# Maps multiple raw classes to a single target macro-class
+# Format: {"target_class_name": ["raw_class_1", "raw_class_2"]}
+LABEL_MAP = {
+    "text": [
+        "text", "notes", "distance", "azimuth", "area", "adj lot", 
+        "street", "lot number", "pin num", "file num", "calc"
+    ],
+    "table": [
+        "coord table", "curve table", "line table", "title data"
+    ]
+}
+
 # Hybrid Training (Slices + Global Context)
 HYBRID_TRAINING = True
 GLOBAL_RESIZE_SIZE = 1024

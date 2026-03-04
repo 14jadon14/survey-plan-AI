@@ -195,9 +195,53 @@ def prepare_data(data_path_arg=None):
         else:
              print(f"  - Slicing to {repr(str(sliced_out))}...")
              
-             # SANITIZE JSON
+             # SANITIZE JSON AND APPLY LABEL MAP
              with open(json_path, 'r') as jf:
                  coco_data = json.load(jf)
+                 
+             # APPY LABEL MAPPING
+             if hasattr(config, 'LABEL_MAP') and config.LABEL_MAP:
+                 print(f"  - Applying LABEL_MAP from config...")
+                 
+                 # Build reverse lookup: raw_class -> target_macro_class
+                 reverse_map = {}
+                 for target_class, raw_classes in config.LABEL_MAP.items():
+                     for raw in raw_classes:
+                         reverse_map[raw] = target_class
+                         
+                 # 1. Update Categories List & Build ID maps
+                 new_categories = []
+                 old_id_to_new_id = {}
+                 name_to_new_id = {}
+                 next_new_id = 0
+                 
+                 for cat in coco_data.get('categories', []):
+                     old_id = cat['id']
+                     raw_name = cat['name']
+                     mapped_name = reverse_map.get(raw_name, raw_name) # Default to self if not in map
+                     
+                     if mapped_name not in name_to_new_id:
+                         name_to_new_id[mapped_name] = next_new_id
+                         new_categories.append({
+                             'id': next_new_id,
+                             'name': mapped_name,
+                             'supercategory': 'none'
+                         })
+                         next_new_id += 1
+                         
+                     old_id_to_new_id[old_id] = name_to_new_id[mapped_name]
+                     
+                 # Sort categories by ID just in case
+                 coco_data['categories'] = sorted(new_categories, key=lambda x: x['id'])
+                 
+                 # 2. Update Annotation IDs
+                 if 'annotations' in coco_data:
+                     for ann in coco_data['annotations']:
+                         old_cat_id = ann['category_id']
+                         if old_cat_id in old_id_to_new_id:
+                             ann['category_id'] = old_id_to_new_id[old_cat_id]
+                             
+                 print(f"  - Classes reduced to {len(coco_data['categories'])} mapped categories.")
              
              # Get list of available images in the directory
              available_imgs = {p.name for p in img_dir.glob("*")}
