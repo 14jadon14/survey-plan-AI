@@ -110,15 +110,24 @@ def map_yolo_obb_to_coco(raw_data_path):
     splits = {}
     converted_any = False
     
+    # Splits might be in raw_data_path OR in config.BASE_DIR / 'data' OR /content/data if moved by train_val_split
+    data_locations = [raw_data_path, config.BASE_DIR / "data", Path("/content/data")]
+    
     for split in ['train', 'valid', 'val', 'test', 'validation']:
-        split_dir = raw_data_path / split
-        if not split_dir.exists():
-            continue
-            
-        img_dir = split_dir / 'images'
-        lbl_dir = split_dir / 'labels'
+        img_dir = None
+        lbl_dir = None
+        split_dir = None
         
-        if not img_dir.exists() or not lbl_dir.exists():
+        for loc in data_locations:
+             if (loc / split / "images").exists() and (loc / split / "labels").exists():
+                 # Check if images actually exist inside
+                 if any((loc / split / "images").iterdir()):
+                     img_dir = loc / split / "images"
+                     lbl_dir = loc / split / "labels"
+                     split_dir = loc / split
+                     break
+                     
+        if not img_dir or not lbl_dir:
             continue
             
         print(f"[INFO] Formatting YOLO OBB to COCO for split '{split}'...")
@@ -247,11 +256,23 @@ def prepare_data(data_path_arg=None):
     # Fallback: Check root for master JSON (common in Roboflow/CVAT exports before splitting)
     if not splits:
         print("[INFO] No split-specific JSONs found. Checking for master JSON...")
-        # Look for typical names
         master_jsons = list(raw_data_path.glob("*.json"))
-        if master_jsons:
-             master_json = master_jsons[0]
-             print(f"[INFO] Found master JSON: {master_json.name}. Will attempt to use it for both splits.")
+        master_json = None
+        
+        for jf in master_jsons:
+             try:
+                 with open(jf, 'r') as f:
+                     data = json.load(f)
+                     # Validate it's a real COCO dataset with images and annotations
+                     if 'images' in data and 'categories' in data:
+                         if len(data['images']) > 0 or len(data.get('annotations', [])) > 0:
+                             master_json = jf
+                             break
+             except:
+                 pass
+                 
+        if master_json:
+             print(f"[INFO] Found valid master JSON: {master_json.name}. Will attempt to use it for both splits.")
              
              # Verify which split folders actually exist with images
              # Check raw_data_path (custom_data) AND config.BASE_DIR/data (train_val_split default)
