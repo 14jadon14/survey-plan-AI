@@ -19,9 +19,11 @@ CLOSE_MOSAIC_EPOCHS = 10
 PATIENCE = 20
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.40
+CONF_THRESHOLD = 0.60
 SAHI_POSTPROCESS_TYPE = "NMM"
-SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.5
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
+PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
+STANDARD_PRED_IMAGE_SIZE = 1024    # Resize size for the full-image pass
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
 
 # Dataset Processing Hyperparameters

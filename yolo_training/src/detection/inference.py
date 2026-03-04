@@ -69,8 +69,13 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
         try:
             _slice_h = slice_wh if slice_wh else (getattr(config, 'SLICE_HEIGHT', 1280) if config else 1280)
             _slice_w = slice_wh if slice_wh else (getattr(config, 'SLICE_WIDTH', 1280) if config else 1280)
-            _overlap_h = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_HEIGHT_RATIO', 0.2) if config else 0.2)
-            _overlap_w = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_WIDTH_RATIO', 0.2) if config else 0.2)
+            _overlap_h = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_HEIGHT_RATIO', 0.4) if config else 0.4)
+            _overlap_w = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_WIDTH_RATIO', 0.4) if config else 0.4)
+            _perform_std_pred = getattr(config, 'PERFORM_STANDARD_PRED', True) if config else True
+            _std_pred_size = getattr(config, 'STANDARD_PRED_IMAGE_SIZE', 1024) if config else 1024
+
+            if _perform_std_pred:
+                print(f"  [INFO] Global context enabled (standard pred size: {_std_pred_size})")
 
             result = get_sliced_prediction(
                 image_path,
@@ -79,8 +84,11 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 slice_width=_slice_w,
                 overlap_height_ratio=_overlap_h,
                 overlap_width_ratio=_overlap_w,
+                perform_standard_pred=_perform_std_pred,
+                standard_pred_image_size=_std_pred_size,
                 postprocess_type=getattr(config, 'SAHI_POSTPROCESS_TYPE', 'NMM') if config else 'NMM',
-                postprocess_match_threshold=getattr(config, 'SAHI_POSTPROCESS_MATCH_THRESHOLD', 0.5) if config else 0.5
+                postprocess_match_threshold=getattr(config, 'SAHI_POSTPROCESS_MATCH_THRESHOLD', 0.25) if config else 0.25,
+                postprocess_class_agnostic=True,
             )
 
             # Export visualization
