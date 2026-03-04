@@ -84,61 +84,119 @@ def convert_to_obb_parallel(json_file, out_img_dir, out_lbl_dir):
         
     return cats
 
+def _find_yolo_obb_labels(search_dirs):
+    """
+    Searches for YOLO OBB label directories across multiple locations.
+    Returns list of (split_name, img_dir, lbl_dir) tuples found.
+    """
+    found = []
+    for split in ['train', 'valid', 'val', 'test', 'validation']:
+        for loc in search_dirs:
+            img_dir = loc / split / "images"
+            lbl_dir = loc / split / "labels"
+            if img_dir.exists() and lbl_dir.exists():
+                # Verify there are actual image files and label .txt files
+                has_images = any(img_dir.glob("*.*"))
+                has_labels = any(lbl_dir.glob("*.txt"))
+                if has_images and has_labels:
+                    # Verify at least one .txt has 9+ columns (OBB format)
+                    for txt_file in lbl_dir.glob("*.txt"):
+                        with open(txt_file, 'r') as f:
+                            first_line = f.readline().strip()
+                            if first_line and len(first_line.split()) >= 9:
+                                found.append((split, img_dir, lbl_dir))
+                                break
+                    break  # Don't search other locations for this split
+    return found
+
+
+def _load_class_names(raw_data_path, search_dirs):
+    """
+    Try to load class names from data.yaml in any of the provided directories.
+    Falls back to building from LABEL_MAP in config, or from scanning label files.
+    Returns a list of category dicts [{id, name, supercategory}].
+    """
+    # 1. Try data.yaml in all locations
+    for loc in [raw_data_path] + search_dirs + [raw_data_path.parent]:
+        yaml_path = loc / "data.yaml"
+        if yaml_path.exists():
+            try:
+                with open(yaml_path, 'r') as f:
+                    data_yaml = yaml.safe_load(f)
+                names = data_yaml.get('names', [])
+                if names:
+                    if isinstance(names, dict):
+                        cats = [{'id': k, 'name': str(v), 'supercategory': 'none'} for k, v in names.items()]
+                    else:
+                        cats = [{'id': i, 'name': str(n), 'supercategory': 'none'} for i, n in enumerate(names)]
+                    print(f"[INFO] Loaded {len(cats)} class names from {yaml_path}")
+                    return cats
+            except Exception as e:
+                print(f"[WARN] Found data.yaml at {yaml_path} but failed to parse: {e}")
+    
+    # 2. Fallback: Build from LABEL_MAP in config
+    if hasattr(config, 'LABEL_MAP') and config.LABEL_MAP:
+        print("[INFO] No data.yaml found. Building class names from config.LABEL_MAP...")
+        cats = [{'id': i, 'name': name, 'supercategory': 'none'} 
+                for i, name in enumerate(config.LABEL_MAP.keys())]
+        return cats
+    
+    # 3. Last resort: Scan all label .txt files to find unique class IDs
+    print("[WARN] No data.yaml or LABEL_MAP found. Scanning label files for class IDs...")
+    all_class_ids = set()
+    for loc in search_dirs:
+        for split in ['train', 'valid', 'val', 'test', 'validation']:
+            lbl_dir = loc / split / "labels"
+            if lbl_dir.exists():
+                for txt_file in lbl_dir.glob("*.txt"):
+                    with open(txt_file, 'r') as f:
+                        for line in f:
+                            parts = line.strip().split()
+                            if len(parts) >= 9:
+                                all_class_ids.add(int(parts[0]))
+    
+    cats = [{'id': cid, 'name': f'class_{cid}', 'supercategory': 'none'} 
+            for cid in sorted(all_class_ids)]
+    print(f"[WARN] Auto-detected {len(cats)} class IDs: {[c['id'] for c in cats]}. Names are placeholders.")
+    return cats
+
+
 def map_yolo_obb_to_coco(raw_data_path):
     """
-    Checks if raw_data_path contains a YOLOv8 OBB dataset (data.yaml + text labels).
-    If so, converts text labels to COCO JSON format so SAHI slicing can process it.
-    Returns a tuple of ({split_name: path_to_generated_json}, {id: class_name}) or (None, None).
+    Checks if the dataset contains YOLOv8 OBB labels (text files with 9+ columns).
+    Searches multiple directories (raw_data_path, config data dir, /content/data).
+    Converts found labels to COCO JSON format so SAHI slicing can process them.
+    Returns a tuple of ({split_name: path_to_json}, {id: class_name}) or (None, None).
     """
-    yaml_path = raw_data_path / "data.yaml"
-    if not yaml_path.exists():
-        # Might be in parent dir if raw_data passes in a split 
-        yaml_path = raw_data_path.parent / "data.yaml"
-        if not yaml_path.exists():
-            return None, None
-        
-    try:
-        with open(yaml_path, 'r') as f:
-            data_yaml = yaml.safe_load(f)
-    except Exception as e:
-        print(f"[WARN] Found data.yaml but failed to parse: {e}")
+    # All locations where split data might live
+    search_dirs = [raw_data_path, config.BASE_DIR / "data", Path("/content/data")]
+    
+    # Step 1: Find YOLO OBB label directories
+    found_splits = _find_yolo_obb_labels(search_dirs)
+    
+    if not found_splits:
+        print("[INFO] No YOLOv8 OBB labels detected in any search location.")
         return None, None
-        
-    names = data_yaml.get('names', [])
-    if isinstance(names, dict):
-        categories = [{'id': k, 'name': str(v), 'supercategory': 'none'} for k, v in names.items()]
-    else:
-        categories = [{'id': i, 'name': str(name), 'supercategory': 'none'} for i, name in enumerate(names)]
-        
+    
+    print(f"[INFO] Found YOLOv8 OBB labels in splits: {[s[0] for s in found_splits]}")
+    
+    # Step 2: Load class names
+    categories = _load_class_names(raw_data_path, search_dirs)
+    
+    if not categories:
+        print("[ERROR] Could not determine class names for YOLO OBB dataset!")
+        return None, None
+    
+    # Step 3: Convert each split to COCO JSON
     splits = {}
-    converted_any = False
     
-    # Splits might be in raw_data_path OR in config.BASE_DIR / 'data' OR /content/data if moved by train_val_split
-    data_locations = [raw_data_path, config.BASE_DIR / "data", Path("/content/data")]
-    
-    for split in ['train', 'valid', 'val', 'test', 'validation']:
-        img_dir = None
-        lbl_dir = None
-        split_dir = None
-        
-        for loc in data_locations:
-             if (loc / split / "images").exists() and (loc / split / "labels").exists():
-                 # Check if images actually exist inside
-                 if any((loc / split / "images").iterdir()):
-                     img_dir = loc / split / "images"
-                     lbl_dir = loc / split / "labels"
-                     split_dir = loc / split
-                     break
-                     
-        if not img_dir or not lbl_dir:
-            continue
-            
-        print(f"[INFO] Formatting YOLO OBB to COCO for split '{split}'...")
+    for split_name, img_dir, lbl_dir in found_splits:
+        print(f"[INFO] Converting YOLO OBB to COCO for split '{split_name}' ({img_dir})...")
         coco_data = {'categories': categories, 'images': [], 'annotations': []}
         ann_id = 1
         img_id = 1
         
-        for img_path in img_dir.glob("*.*"):
+        for img_path in sorted(img_dir.glob("*.*")):
             if img_path.suffix.lower() not in ['.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff']:
                 continue
                 
@@ -183,15 +241,20 @@ def map_yolo_obb_to_coco(raw_data_path):
                             })
                             ann_id += 1
             img_id += 1
-            
-        out_json = split_dir / f"{split}_coco.json"
+        
+        # Write COCO JSON next to the images
+        out_json = img_dir.parent / f"{split_name}_coco.json"
         with open(out_json, 'w') as f:
             json.dump(coco_data, f)
-        splits[split] = out_json
-    # Create a dictionary of ID: Name for returning the detected classes
+        splits[split_name] = out_json
+        print(f"  - Wrote {len(coco_data['images'])} images, {len(coco_data['annotations'])} annotations to {out_json}")
+    
     detected_classes = {cat['id']: cat['name'] for cat in categories}
     
-    return (splits, detected_classes) if converted_any else (None, None)
+    if splits:
+        return splits, detected_classes
+    else:
+        return None, None
 
 def prepare_data(data_path_arg=None):
     """
@@ -242,7 +305,8 @@ def prepare_data(data_path_arg=None):
     splits = {}
     
     # Check if raw_data is YOLO OBB format natively
-    yolo_obb_splits, yolo_obb_classes = map_yolo_obb_to_coco(raw_data_path) if map_yolo_obb_to_coco(raw_data_path) is not None else (None, None)
+    result = map_yolo_obb_to_coco(raw_data_path)
+    yolo_obb_splits, yolo_obb_classes = result
     if yolo_obb_splits:
         splits = yolo_obb_splits
         detected_classes.update(yolo_obb_classes)
