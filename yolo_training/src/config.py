@@ -3,13 +3,13 @@ import os
 
 # Hyperparameters
 BATCH_SIZE = 32
-IMGSZ = 640
-EPOCHS = 50
+IMGSZ = 800
+EPOCHS = 30
 SLICE_HEIGHT = 1280
 SLICE_WIDTH = 1280
 OVERLAP_HEIGHT_RATIO = 0.4
 OVERLAP_WIDTH_RATIO = 0.4
-ROTATION_DEGREES = 0.0 # Augmentation parameter
+ROTATION_DEGREES = 2.0 # Augmentation parameter
 
 # Label Mapping System
 # Maps multiple raw classes to a single target macro-class
