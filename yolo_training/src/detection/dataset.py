@@ -343,7 +343,10 @@ def prepare_data(data_path_arg=None):
     yolo_obb_splits, yolo_obb_classes = result
     if yolo_obb_splits:
         splits = yolo_obb_splits
-        detected_classes.update(yolo_obb_classes)
+        # NOTE: We do NOT populate detected_classes here with yolo_obb_classes.
+        # Those are raw/unmapped names from classes.txt (33 classes).
+        # The LABEL_MAP remapping happens later during slicing, and convert_to_obb_parallel
+        # will return the correctly mapped classes (29 classes) which we use instead.
         print(f"[INFO] Detected YOLOv8 OBB format! Converted to COCO internally for splits: {list(splits.keys())}")
     else:
         # We need to map the split folder names to what the slicing logic expects
