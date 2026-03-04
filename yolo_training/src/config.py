@@ -4,7 +4,7 @@ import os
 # Hyperparameters
 BATCH_SIZE = 32
 IMGSZ = 640
-EPOCHS = 10
+EPOCHS = 50
 SLICE_HEIGHT = 1280
 SLICE_WIDTH = 1280
 OVERLAP_HEIGHT_RATIO = 0.4
@@ -26,7 +26,6 @@ LABEL_MAP = {
     "curve table": ["curve table"],
     "dev stamp": ["dev stamp"],
     "distance": ["distance"],
-    "file num": ["file num"],
     "ip": ["ip"],
     "key plan": ["key plan"],
     "legend": ["legend"],
@@ -36,7 +35,6 @@ LABEL_MAP = {
     "notes": ["notes"],
     "pin num": ["pin num"],
     "plan date": ["plan date"],
-    "plan purpsoe": ["plan purpsoe"],
     "plan title": ["plan title"],
     "ribf": ["ribf"],
     "scale bar": ["scale bar"],
@@ -44,7 +42,7 @@ LABEL_MAP = {
     "sms": ["sms"],
     "sqib": ["sqib"],
     "street": ["street"],
-    "text": ["text", "title data"],
+    "text": ["text", "title data", "plan purpsoe", "file num"],
     "signature": ["owner signature", "nbls signature"]
 }
 
