@@ -28,7 +28,7 @@ POSTPROCESS_CLASS_AGNOSTIC = True   # Merge overlapping boxes regardless of clas
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
 
 # Dataset Processing Hyperparameters
-TRAIN_SPLIT_PCT = 0.7
+TRAIN_SPLIT_PCT = 0.8
 DATASET_MAX_WORKERS = 4
 
 # Label Mapping System
