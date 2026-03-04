@@ -19,7 +19,7 @@ CLOSE_MOSAIC_EPOCHS = 10
 PATIENCE = 20
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.60
+CONF_THRESHOLD = 0.40
 SAHI_POSTPROCESS_TYPE = "NMM"
 SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.5
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']

@@ -15,20 +15,18 @@ names:
   13: legend
   14: line table
   15: lot number
-  16: nbls signature
+  16: signature
   17: north arrow
   18: notes
-  19: owner signature
-  20: pin num
-  21: plan date
-  22: plan purpsoe
-  23: plan title
-  24: ribf
-  25: scale bar
-  26: smf
-  27: sms
-  28: sqib
-  29: title data
+  19: pin num
+  20: plan date
+  21: text
+  22: plan title
+  23: ribf
+  24: scale bar
+  25: smf
+  26: sms
+  27: sqib
 path: C:\Users\Jadon\Desktop\SurveyPlan AI\yolo_training\survey_obb_dataset
 train: train/images
 val: validation/images

@@ -84,6 +84,102 @@ def convert_to_obb_parallel(json_file, out_img_dir, out_lbl_dir):
         
     return cats
 
+def map_yolo_obb_to_coco(raw_data_path):
+    """
+    Checks if raw_data_path contains a YOLOv8 OBB dataset (data.yaml + text labels).
+    If so, converts text labels to COCO JSON format so SAHI slicing can process it.
+    Returns a dict of {split_name: path_to_generated_json} or None if not YOLO OBB/conversion failed.
+    """
+    yaml_path = raw_data_path / "data.yaml"
+    if not yaml_path.exists():
+        return None
+        
+    try:
+        with open(yaml_path, 'r') as f:
+            data_yaml = yaml.safe_load(f)
+    except Exception as e:
+        print(f"[WARN] Found data.yaml but failed to parse: {e}")
+        return None
+        
+    names = data_yaml.get('names', [])
+    if isinstance(names, dict):
+        categories = [{'id': k, 'name': str(v), 'supercategory': 'none'} for k, v in names.items()]
+    else:
+        categories = [{'id': i, 'name': str(name), 'supercategory': 'none'} for i, name in enumerate(names)]
+        
+    splits = {}
+    converted_any = False
+    
+    for split in ['train', 'valid', 'val', 'test', 'validation']:
+        split_dir = raw_data_path / split
+        if not split_dir.exists():
+            continue
+            
+        img_dir = split_dir / 'images'
+        lbl_dir = split_dir / 'labels'
+        
+        if not img_dir.exists() or not lbl_dir.exists():
+            continue
+            
+        print(f"[INFO] Formatting YOLO OBB to COCO for split '{split}'...")
+        coco_data = {'categories': categories, 'images': [], 'annotations': []}
+        ann_id = 1
+        img_id = 1
+        
+        for img_path in img_dir.glob("*.*"):
+            if img_path.suffix.lower() not in ['.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff']:
+                continue
+                
+            img = cv2.imread(str(img_path))
+            if img is None:
+                continue
+            h, w = img.shape[:2]
+            
+            coco_data['images'].append({
+                'id': img_id,
+                'file_name': img_path.name,
+                'width': w,
+                'height': h
+            })
+            
+            lbl_path = lbl_dir / (img_path.stem + '.txt')
+            if lbl_path.exists():
+                with open(lbl_path, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 9:
+                            cat_id = int(parts[0])
+                            pts = [float(p) for p in parts[1:9]]
+                            abs_pts = []
+                            for i in range(4):
+                                abs_pts.extend([pts[i*2] * w, pts[i*2+1] * h])
+                                
+                            xs = abs_pts[0::2]
+                            ys = abs_pts[1::2]
+                            xmin, xmax = min(xs), max(xs)
+                            ymin, ymax = min(ys), max(ys)
+                            bbox = [xmin, ymin, xmax - xmin, ymax - ymin]
+                            
+                            coco_data['annotations'].append({
+                                'id': ann_id,
+                                'image_id': img_id,
+                                'category_id': cat_id,
+                                'segmentation': [abs_pts],
+                                'bbox': bbox,
+                                'area': (xmax - xmin) * (ymax - ymin),
+                                'iscrowd': 0
+                            })
+                            ann_id += 1
+            img_id += 1
+            
+        out_json = split_dir / f"{split}_coco.json"
+        with open(out_json, 'w') as f:
+            json.dump(coco_data, f)
+        splits[split] = out_json
+        converted_any = True
+        
+    return splits if converted_any else None
+
 def prepare_data(data_path_arg=None):
     """
     Orchestrates the data preparation pipeline.
@@ -111,32 +207,41 @@ def prepare_data(data_path_arg=None):
     val_dir = raw_data_path / "validation"
     
     if not train_dir.exists() or not val_dir.exists():
-        print("Build step: Splitting data...")
-        # Download script if missing
-        split_script = Path("train_val_split.py")
-        if not split_script.exists():
-             import urllib.request
-             print("[INFO] Downloading train_val_split.py...")
-             urllib.request.urlretrieve("https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py", "train_val_split.py")
-        
-        # Run split
-        cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct={getattr(config, "TRAIN_SPLIT_PCT", 0.7)}'
-        os.system(cmd)
+        print("Build step: Splitting data (or checking if already split)...")
+        # Check if Roboflow 'valid' dir exists
+        if (raw_data_path / "valid").exists():
+             print("[INFO] Found 'valid' directory from Roboflow export.")
+             val_dir = raw_data_path / "valid"
+        else:
+            # Download script if missing
+            split_script = Path("train_val_split.py")
+            if not split_script.exists():
+                 import urllib.request
+                 print("[INFO] Downloading train_val_split.py...")
+                 urllib.request.urlretrieve("https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py", "train_val_split.py")
+            
+            # Run split
+            cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct={getattr(config, "TRAIN_SPLIT_PCT", 0.7)}'
+            os.system(cmd)
         
     # 3. Slicing & OBB Conversion
     detected_classes = {}
-    
-    # We need to map the split folder names to what the slicing logic expects
-    # The split script creates: 'train/images', 'validation/images'
-    # We want to process these.
-    
-    # Let's search for JSONs in the train/val directories
     splits = {}
-    for split_name in ['train', 'validation']:
-        d = raw_data_path / split_name
-        json_files = list(d.glob("*.json"))
-        if json_files:
-            splits[split_name] = json_files[0]
+    
+    # Check if raw_data is YOLO OBB format natively
+    yolo_obb_splits = map_yolo_obb_to_coco(raw_data_path)
+    if yolo_obb_splits:
+        splits = yolo_obb_splits
+        print(f"[INFO] Detected YOLOv8 OBB format! Converted to COCO internally for splits: {list(splits.keys())}")
+    else:
+        # We need to map the split folder names to what the slicing logic expects
+        # Let's search for JSONs in the train/val directories
+        for split_name in ['train', 'validation', 'valid', 'val']:
+            d = raw_data_path / split_name
+            if not d.exists(): continue
+            json_files = list(d.glob("*.json"))
+            if json_files:
+                splits[split_name] = json_files[0]
             
     # If no JSONs found in subfolders, maybe they are in root?
     # Fallback: Check root for master JSON (common in Roboflow/CVAT exports before splitting)
