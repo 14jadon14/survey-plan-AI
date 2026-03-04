@@ -22,6 +22,7 @@ PATIENCE = 20
 CONF_THRESHOLD = 0.60
 SAHI_POSTPROCESS_TYPE = "NMM"
 SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
+SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
 POSTPROCESS_CLASS_AGNOSTIC = True   # Merge overlapping boxes regardless of class
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']

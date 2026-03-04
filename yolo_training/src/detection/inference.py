@@ -85,8 +85,10 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 overlap_width_ratio=_overlap_w,
                 perform_standard_pred=_perform_std_pred,
                 postprocess_type=getattr(config, 'SAHI_POSTPROCESS_TYPE', 'NMM') if config else 'NMM',
+                postprocess_match_metric=getattr(config, 'SAHI_POSTPROCESS_MATCH_METRIC', 'IOS') if config else 'IOS',
                 postprocess_match_threshold=getattr(config, 'SAHI_POSTPROCESS_MATCH_THRESHOLD', 0.25) if config else 0.25,
                 postprocess_class_agnostic=getattr(config, 'POSTPROCESS_CLASS_AGNOSTIC', True) if config else True,
+                verbose=0,
             )
 
             # Export visualization
