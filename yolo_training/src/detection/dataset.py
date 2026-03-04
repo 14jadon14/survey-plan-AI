@@ -354,6 +354,11 @@ def prepare_data(data_path_arg=None):
              filtered_images = []
              kept_ids = set()
              
+             # Safeguard against missing 'images' key
+             if 'images' not in coco_data:
+                 coco_data['images'] = []
+                 print(f"  - [WARN] 'images' key missing in {json_path.name}. Initialized empty.")
+                 
              for img in coco_data['images']:
                  # Handle both / and \ separators for cross-platform compatibility
                  raw_name = str(img['file_name'])
