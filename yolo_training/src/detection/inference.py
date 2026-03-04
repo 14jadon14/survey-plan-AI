@@ -72,10 +72,9 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             _overlap_h = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_HEIGHT_RATIO', 0.4) if config else 0.4)
             _overlap_w = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_WIDTH_RATIO', 0.4) if config else 0.4)
             _perform_std_pred = getattr(config, 'PERFORM_STANDARD_PRED', True) if config else True
-            _std_pred_size = getattr(config, 'STANDARD_PRED_IMAGE_SIZE', 1024) if config else 1024
 
             if _perform_std_pred:
-                print(f"  [INFO] Global context enabled (standard pred size: {_std_pred_size})")
+                print(f"  [INFO] Global context enabled (full-image standard prediction)")
 
             result = get_sliced_prediction(
                 image_path,
@@ -85,7 +84,6 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 overlap_height_ratio=_overlap_h,
                 overlap_width_ratio=_overlap_w,
                 perform_standard_pred=_perform_std_pred,
-                standard_pred_image_size=_std_pred_size,
                 postprocess_type=getattr(config, 'SAHI_POSTPROCESS_TYPE', 'NMM') if config else 'NMM',
                 postprocess_match_threshold=getattr(config, 'SAHI_POSTPROCESS_MATCH_THRESHOLD', 0.25) if config else 0.25,
                 postprocess_class_agnostic=getattr(config, 'POSTPROCESS_CLASS_AGNOSTIC', True) if config else True,
