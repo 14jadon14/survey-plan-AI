@@ -112,37 +112,16 @@ def _find_yolo_obb_labels(search_dirs):
 
 def _load_class_names(raw_data_path, search_dirs):
     """
-    Try to load class names from data.yaml in any of the provided directories.
-    Falls back to building from LABEL_MAP in config, or from scanning label files.
+    Build categories that cover ALL class IDs found in the label files.
+    Try to get proper names from data.yaml. If unavailable, use placeholder names.
+    
+    IMPORTANT: LABEL_MAP is NOT used here because it consolidates classes
+    (reducing the count and reassigning IDs). LABEL_MAP remapping happens
+    later in the prepare_data sanitization step.
+    
     Returns a list of category dicts [{id, name, supercategory}].
     """
-    # 1. Try data.yaml in all locations
-    for loc in [raw_data_path] + search_dirs + [raw_data_path.parent]:
-        yaml_path = loc / "data.yaml"
-        if yaml_path.exists():
-            try:
-                with open(yaml_path, 'r') as f:
-                    data_yaml = yaml.safe_load(f)
-                names = data_yaml.get('names', [])
-                if names:
-                    if isinstance(names, dict):
-                        cats = [{'id': k, 'name': str(v), 'supercategory': 'none'} for k, v in names.items()]
-                    else:
-                        cats = [{'id': i, 'name': str(n), 'supercategory': 'none'} for i, n in enumerate(names)]
-                    print(f"[INFO] Loaded {len(cats)} class names from {yaml_path}")
-                    return cats
-            except Exception as e:
-                print(f"[WARN] Found data.yaml at {yaml_path} but failed to parse: {e}")
-    
-    # 2. Fallback: Build from LABEL_MAP in config
-    if hasattr(config, 'LABEL_MAP') and config.LABEL_MAP:
-        print("[INFO] No data.yaml found. Building class names from config.LABEL_MAP...")
-        cats = [{'id': i, 'name': name, 'supercategory': 'none'} 
-                for i, name in enumerate(config.LABEL_MAP.keys())]
-        return cats
-    
-    # 3. Last resort: Scan all label .txt files to find unique class IDs
-    print("[WARN] No data.yaml or LABEL_MAP found. Scanning label files for class IDs...")
+    # Step 1: Always scan label files to find ALL unique class IDs actually used
     all_class_ids = set()
     for loc in search_dirs:
         for split in ['train', 'valid', 'val', 'test', 'validation']:
@@ -155,9 +134,47 @@ def _load_class_names(raw_data_path, search_dirs):
                             if len(parts) >= 9:
                                 all_class_ids.add(int(parts[0]))
     
-    cats = [{'id': cid, 'name': f'class_{cid}', 'supercategory': 'none'} 
-            for cid in sorted(all_class_ids)]
-    print(f"[WARN] Auto-detected {len(cats)} class IDs: {[c['id'] for c in cats]}. Names are placeholders.")
+    if not all_class_ids:
+        print("[WARN] No class IDs found in any label files!")
+        return []
+    
+    max_id = max(all_class_ids)
+    print(f"[INFO] Found {len(all_class_ids)} unique class IDs in labels (max ID: {max_id})")
+    
+    # Step 2: Try to load names from data.yaml
+    yaml_names = None
+    for loc in [raw_data_path] + search_dirs + [raw_data_path.parent]:
+        yaml_path = loc / "data.yaml"
+        if yaml_path.exists():
+            try:
+                with open(yaml_path, 'r') as f:
+                    data_yaml = yaml.safe_load(f)
+                names = data_yaml.get('names', [])
+                if names:
+                    if isinstance(names, dict):
+                        yaml_names = {int(k): str(v) for k, v in names.items()}
+                    else:
+                        yaml_names = {i: str(n) for i, n in enumerate(names)}
+                    print(f"[INFO] Loaded {len(yaml_names)} class names from {yaml_path}")
+                    break
+            except Exception as e:
+                print(f"[WARN] Found data.yaml at {yaml_path} but failed to parse: {e}")
+    
+    # Step 3: Build categories covering ALL IDs from 0 to max_id
+    # This ensures no KeyError when SAHI looks up any annotation's category_id
+    cats = []
+    for cid in range(max_id + 1):
+        if yaml_names and cid in yaml_names:
+            name = yaml_names[cid]
+        else:
+            name = f'class_{cid}'
+        cats.append({'id': cid, 'name': name, 'supercategory': 'none'})
+    
+    if yaml_names:
+        print(f"[INFO] Built {len(cats)} categories from data.yaml names")
+    else:
+        print(f"[INFO] Built {len(cats)} categories with placeholder names (no data.yaml found)")
+    
     return cats
 
 
