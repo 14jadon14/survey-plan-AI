@@ -49,13 +49,14 @@ def main():
         batch=args.batch,
         name=config.PROJECT_NAME,
         device=device,
-        workers=8 if IN_COLAB else 0,
-        degrees=45,
+        workers=16 if IN_COLAB else 0, # Increased from 4 for faster data loading
+        degrees=config.ROTATION_DEGREES, # Configurable rotation augmentation
         fliplr=0.0,
-        cache=True,
+        cache=True, # Re-enabled memory caching
         cos_lr=True,
         amp=True,
-        close_mosaic=10
+        close_mosaic=10,
+        patience=20 # Added patience for early stopping optimization
     )
     
     print("[INFO] Training complete!")

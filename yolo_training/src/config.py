@@ -2,13 +2,14 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 IMGSZ = 1024
-EPOCHS = 100
+EPOCHS = 50
 SLICE_HEIGHT = 1024
 SLICE_WIDTH = 1024
-OVERLAP_HEIGHT_RATIO = 0.3
-OVERLAP_WIDTH_RATIO = 0.3
+OVERLAP_HEIGHT_RATIO = 0.4
+OVERLAP_WIDTH_RATIO = 0.4
+ROTATION_DEGREES = 0.0 # Augmentation parameter
 
 # Hybrid Training (Slices + Global Context)
 HYBRID_TRAINING = True
@@ -24,7 +25,7 @@ OBB_DATA_DIR = BASE_DIR / "survey_obb_dataset"
 RUNS_DIR = BASE_DIR / "runs"
 
 # Model
-MODEL_NAME = "yolo26m-obb.pt" 
+MODEL_NAME = "yolo26l-obb.pt" 
 PROJECT_NAME = "survey_plan_obb_run"
 
 # Inference / Document Parsing Integration
