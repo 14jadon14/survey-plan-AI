@@ -88,18 +88,21 @@ def map_yolo_obb_to_coco(raw_data_path):
     """
     Checks if raw_data_path contains a YOLOv8 OBB dataset (data.yaml + text labels).
     If so, converts text labels to COCO JSON format so SAHI slicing can process it.
-    Returns a dict of {split_name: path_to_generated_json} or None if not YOLO OBB/conversion failed.
+    Returns a tuple of ({split_name: path_to_generated_json}, {id: class_name}) or (None, None).
     """
     yaml_path = raw_data_path / "data.yaml"
     if not yaml_path.exists():
-        return None
+        # Might be in parent dir if raw_data passes in a split 
+        yaml_path = raw_data_path.parent / "data.yaml"
+        if not yaml_path.exists():
+            return None, None
         
     try:
         with open(yaml_path, 'r') as f:
             data_yaml = yaml.safe_load(f)
     except Exception as e:
         print(f"[WARN] Found data.yaml but failed to parse: {e}")
-        return None
+        return None, None
         
     names = data_yaml.get('names', [])
     if isinstance(names, dict):
@@ -235,6 +238,7 @@ def prepare_data(data_path_arg=None):
             os.system(cmd)
         
     # 3. Slicing & OBB Conversion
+    detected_classes = {}
     splits = {}
     
     # Check if raw_data is YOLO OBB format natively
