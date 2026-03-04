@@ -15,13 +15,39 @@ ROTATION_DEGREES = 0.0 # Augmentation parameter
 # Maps multiple raw classes to a single target macro-class
 # Format: {"target_class_name": ["raw_class_1", "raw_class_2"]}
 LABEL_MAP = {
-    "text": [
-        "text", "notes", "distance", "azimuth", "area", "adj lot", 
-        "street", "lot number", "pin num", "file num", "calc"
-    ],
-    "table": [
-        "coord table", "curve table", "line table", "title data"
-    ]
+    "adj lot": ["adj lot"],
+    "anbls valnum": ["anbls valnum"],
+    "area": ["area"],
+    "azimuth": ["azimuth"],
+    "calc": ["calc"],
+    "coord table": ["coord table"],
+    "counsel stamp": ["counsel stamp"],
+    "curve data": ["curve data"],
+    "curve table": ["curve table"],
+    "dev stamp": ["dev stamp"],
+    "distance": ["distance"],
+    "file num": ["file num"],
+    "ip": ["ip"],
+    "key plan": ["key plan"],
+    "legend": ["legend"],
+    "line table": ["line table"],
+    "lot number": ["lot number"],
+    "nbls signature": ["nbls signature"],
+    "north arrow": ["north arrow"],
+    "notes": ["notes"],
+    "owner signature": ["owner signature"],
+    "pin num": ["pin num"],
+    "plan date": ["plan date"],
+    "plan purpsoe": ["plan purpsoe"],
+    "plan title": ["plan title"],
+    "ribf": ["ribf"],
+    "scale bar": ["scale bar"],
+    "smf": ["smf"],
+    "sms": ["sms"],
+    "sqib": ["sqib"],
+    "street": ["street"],
+    "text": ["text"],
+    "title data": ["title data"]
 }
 
 # Hybrid Training (Slices + Global Context)
