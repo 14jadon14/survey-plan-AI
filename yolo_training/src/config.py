@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 IMGSZ = 640
 EPOCHS = 10
 SLICE_HEIGHT = 1280
@@ -44,8 +44,7 @@ LABEL_MAP = {
     "sms": ["sms"],
     "sqib": ["sqib"],
     "street": ["street"],
-    "text": ["text"],
-    "title data": ["title data"],
+    "text": ["text", "title data"],
     "signature": ["owner signature", "nbls signature"]
 }
 
