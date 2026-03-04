@@ -185,9 +185,10 @@ def map_yolo_obb_to_coco(raw_data_path):
         with open(out_json, 'w') as f:
             json.dump(coco_data, f)
         splits[split] = out_json
-        converted_any = True
-        
-    return splits if converted_any else None
+    # Create a dictionary of ID: Name for returning the detected classes
+    detected_classes = {cat['id']: cat['name'] for cat in categories}
+    
+    return (splits, detected_classes) if converted_any else (None, None)
 
 def prepare_data(data_path_arg=None):
     """
@@ -234,13 +235,13 @@ def prepare_data(data_path_arg=None):
             os.system(cmd)
         
     # 3. Slicing & OBB Conversion
-    detected_classes = {}
     splits = {}
     
     # Check if raw_data is YOLO OBB format natively
-    yolo_obb_splits = map_yolo_obb_to_coco(raw_data_path)
+    yolo_obb_splits, yolo_obb_classes = map_yolo_obb_to_coco(raw_data_path) if map_yolo_obb_to_coco(raw_data_path) is not None else (None, None)
     if yolo_obb_splits:
         splits = yolo_obb_splits
+        detected_classes.update(yolo_obb_classes)
         print(f"[INFO] Detected YOLOv8 OBB format! Converted to COCO internally for splits: {list(splits.keys())}")
     else:
         # We need to map the split folder names to what the slicing logic expects
