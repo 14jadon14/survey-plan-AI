@@ -3,10 +3,10 @@ import os
 
 # Hyperparameters
 BATCH_SIZE = 16
-IMGSZ = 1024
-EPOCHS = 50
-SLICE_HEIGHT = 1024
-SLICE_WIDTH = 1024
+IMGSZ = 640
+EPOCHS = 10
+SLICE_HEIGHT = 1280
+SLICE_WIDTH = 1280
 OVERLAP_HEIGHT_RATIO = 0.4
 OVERLAP_WIDTH_RATIO = 0.4
 ROTATION_DEGREES = 0.0 # Augmentation parameter
@@ -32,10 +32,8 @@ LABEL_MAP = {
     "legend": ["legend"],
     "line table": ["line table"],
     "lot number": ["lot number"],
-    "nbls signature": ["nbls signature"],
     "north arrow": ["north arrow"],
     "notes": ["notes"],
-    "owner signature": ["owner signature"],
     "pin num": ["pin num"],
     "plan date": ["plan date"],
     "plan purpsoe": ["plan purpsoe"],
@@ -47,7 +45,8 @@ LABEL_MAP = {
     "sqib": ["sqib"],
     "street": ["street"],
     "text": ["text"],
-    "title data": ["title data"]
+    "title data": ["title data"],
+    "signature": ["owner signature", "nbls signature"]
 }
 
 # Hybrid Training (Slices + Global Context)

@@ -137,7 +137,7 @@ def main():
     parser.add_argument('--model_path', type=str, required=True, help='Path to trained YOLO .pt model')
     parser.add_argument('--source', type=str, required=True, help='Path to image or directory of images')
     parser.add_argument('--output_dir', type=str, default='runs/sahi_predict', help='Directory to save results')
-    parser.add_argument('--slice_wh', type=int, default=1024, help='Slice width and height (square)')
+    parser.add_argument('--slice_wh', type=int, default=1280, help='Slice width and height (square)')
     parser.add_argument('--overlap', type=float, default=0.2, help='Overlap ratio (0-1)')
     parser.add_argument('--conf', type=float, default=0.60, help='Confidence threshold')
     
