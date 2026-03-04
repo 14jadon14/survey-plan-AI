@@ -20,7 +20,7 @@ except ImportError:
     print("[WARNING] Could not import config.py. Using default values.")
     config = None
 
-def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0.2, conf_thres=0.60):
+def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=None, conf_thres=None):
     """
     Runs SAHI sliced inference on a set of images.
     """
@@ -33,7 +33,7 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
         detection_model = AutoDetectionModel.from_pretrained(
             model_type='ultralytics',
             model_path=model_path,
-            confidence_threshold=conf_thres,
+            confidence_threshold=conf_thres if conf_thres else (getattr(config, 'CONF_THRESHOLD', 0.60) if config else 0.60),
             device=device
         )
     except Exception as e:
@@ -45,7 +45,7 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
         print(f"[INFO] Created output directory: {output_dir}")
 
     # Gather images
-    extensions = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
+    extensions = getattr(config, 'IMAGE_EXTENSIONS', ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']) if config else ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
     image_paths = []
     if os.path.isdir(source):
         for ext in extensions:
@@ -67,15 +67,20 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
         print(f"[{i+1}/{len(image_paths)}] Processing {image_name}...")
 
         try:
+            _slice_h = slice_wh if slice_wh else (getattr(config, 'SLICE_HEIGHT', 1280) if config else 1280)
+            _slice_w = slice_wh if slice_wh else (getattr(config, 'SLICE_WIDTH', 1280) if config else 1280)
+            _overlap_h = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_HEIGHT_RATIO', 0.2) if config else 0.2)
+            _overlap_w = overlap_ratio if overlap_ratio else (getattr(config, 'OVERLAP_WIDTH_RATIO', 0.2) if config else 0.2)
+
             result = get_sliced_prediction(
                 image_path,
                 detection_model,
-                slice_height=slice_wh,
-                slice_width=slice_wh,
-                overlap_height_ratio=overlap_ratio,
-                overlap_width_ratio=overlap_ratio,
-                postprocess_type="NMM",
-                postprocess_match_threshold=0.5
+                slice_height=_slice_h,
+                slice_width=_slice_w,
+                overlap_height_ratio=_overlap_h,
+                overlap_width_ratio=_overlap_w,
+                postprocess_type=getattr(config, 'SAHI_POSTPROCESS_TYPE', 'NMM') if config else 'NMM',
+                postprocess_match_threshold=getattr(config, 'SAHI_POSTPROCESS_MATCH_THRESHOLD', 0.5) if config else 0.5
             )
 
             # Export visualization
@@ -107,9 +112,28 @@ def run_inference(model_path, source, output_dir, slice_wh=1024, overlap_ratio=0
                     
                     score = float(prediction.score.value)
                     
+                    angle = 0
+                    if prediction.mask:
+                        import cv2
+                        import numpy as np
+                        try:
+                            if hasattr(prediction.mask, 'bool_mask'):
+                                mask_arr = prediction.mask.bool_mask.astype(np.uint8)
+                                contours, _ = cv2.findContours(mask_arr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                                if contours:
+                                    largest_cnt = max(contours, key=cv2.contourArea)
+                                    rect = cv2.minAreaRect(largest_cnt)
+                                    angle = rect[2]
+                        except Exception as e:
+                            print(f"[WARN] Failed to extract angle from mask: {e}")
+
+                    if hasattr(prediction, 'extra_data') and prediction.extra_data and 'angle' in prediction.extra_data:
+                        angle = prediction.extra_data['angle']
+                    
                     json_results.append({
                         "image_path": os.path.abspath(image_path),
                         "bbox": bbox,
+                        "angle": angle,
                         "label": label,
                         "score": score
                     })
@@ -137,9 +161,9 @@ def main():
     parser.add_argument('--model_path', type=str, required=True, help='Path to trained YOLO .pt model')
     parser.add_argument('--source', type=str, required=True, help='Path to image or directory of images')
     parser.add_argument('--output_dir', type=str, default='runs/sahi_predict', help='Directory to save results')
-    parser.add_argument('--slice_wh', type=int, default=1280, help='Slice width and height (square)')
-    parser.add_argument('--overlap', type=float, default=0.2, help='Overlap ratio (0-1)')
-    parser.add_argument('--conf', type=float, default=0.60, help='Confidence threshold')
+    parser.add_argument('--slice_wh', type=int, default=None, help='Slice width and height (square, defaults to config)')
+    parser.add_argument('--overlap', type=float, default=None, help='Overlap ratio (0-1, defaults to config)')
+    parser.add_argument('--conf', type=float, default=None, help='Confidence threshold (defaults to config)')
     
     args = parser.parse_args()
 

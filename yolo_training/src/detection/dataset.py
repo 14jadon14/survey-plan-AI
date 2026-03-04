@@ -76,7 +76,7 @@ def convert_to_obb_parallel(json_file, out_img_dir, out_lbl_dir):
     # Execute in parallel
     cpu_count = os.cpu_count() or 1
     # Cap CPU count to avoid OOM on high-core machines during local dev
-    max_workers = min(cpu_count, 4)
+    max_workers = min(cpu_count, getattr(config, 'DATASET_MAX_WORKERS', 4))
     
     print(f"  - Processing {len(tasks)} images with {max_workers} cores...")
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -120,7 +120,7 @@ def prepare_data(data_path_arg=None):
              urllib.request.urlretrieve("https://raw.githubusercontent.com/EdjeElectronics/Train-and-Deploy-YOLO-Models/refs/heads/main/utils/train_val_split.py", "train_val_split.py")
         
         # Run split
-        cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct=0.7'
+        cmd = f'{sys.executable} train_val_split.py --datapath="{raw_data_path}" --train_pct={getattr(config, "TRAIN_SPLIT_PCT", 0.7)}'
         os.system(cmd)
         
     # 3. Slicing & OBB Conversion

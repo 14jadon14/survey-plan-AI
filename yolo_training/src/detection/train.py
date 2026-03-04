@@ -49,14 +49,14 @@ def main():
         batch=args.batch,
         name=config.PROJECT_NAME,
         device=device,
-        workers=16 if IN_COLAB else 0, # Increased from 4 for faster data loading
+        workers=16 if IN_COLAB else getattr(config, 'NUM_WORKERS', 0), # Increased from 4 for faster data loading
         degrees=config.ROTATION_DEGREES, # Configurable rotation augmentation
-        fliplr=0.0,
-        cache=True, # Re-enabled memory caching
-        cos_lr=True,
-        amp=True,
-        close_mosaic=10,
-        patience=20 # Added patience for early stopping optimization
+        fliplr=getattr(config, 'AUG_FLIPLR', 0.0),
+        cache=getattr(config, 'CACHE_RAM', True), # Re-enabled memory caching
+        cos_lr=getattr(config, 'COS_LR', True),
+        amp=getattr(config, 'AMP', True),
+        close_mosaic=getattr(config, 'CLOSE_MOSAIC_EPOCHS', 10),
+        patience=getattr(config, 'PATIENCE', 20) # Added patience for early stopping optimization
     )
     
     print("[INFO] Training complete!")

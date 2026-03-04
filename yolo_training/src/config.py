@@ -2,14 +2,31 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 16
-IMGSZ = 640
+BATCH_SIZE = 32
+IMGSZ = 800
 EPOCHS = 10
 SLICE_HEIGHT = 1280
 SLICE_WIDTH = 1280
 OVERLAP_HEIGHT_RATIO = 0.4
 OVERLAP_WIDTH_RATIO = 0.4
-ROTATION_DEGREES = 0.0 # Augmentation parameter
+ROTATION_DEGREES = 2.0 # Augmentation parameter
+NUM_WORKERS = 16 # Use 16 for Colab
+AUG_FLIPLR = 0.0
+CACHE_RAM = True
+COS_LR = True
+AMP = True
+CLOSE_MOSAIC_EPOCHS = 10
+PATIENCE = 20
+
+# Inference Hyperparameters
+CONF_THRESHOLD = 0.60
+SAHI_POSTPROCESS_TYPE = "NMM"
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.5
+IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
+
+# Dataset Processing Hyperparameters
+TRAIN_SPLIT_PCT = 0.7
+DATASET_MAX_WORKERS = 4
 
 # Label Mapping System
 # Maps multiple raw classes to a single target macro-class
