@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline import DocumentParser
 
-def display_crop(image, bbox=None, label=None, angle=0):
+def display_crop(image, bbox=None, label=None, angle=0, rect_w=0, rect_h=0):
     """
     Display an image or bounding box crop inline (Colab/Jupyter) before printing text.
     Falls back to a print notice if not in a notebook.
@@ -118,13 +118,21 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
 
                         print(f"\nProcessing item {i}: {img_p}")
                         try:
-                            # Read angle if present in json
+                            # Read angle and explicit rotated box dimensions if present in json
                             angle = item.get("angle", 0)
+                            rect_w = item.get("rect_w", 0)
+                            rect_h = item.get("rect_h", 0)
 
-                            results = parser.process_image(img_p, bboxes=[bbox] if bbox else None, angles=[angle] if bbox else None)
+                            results = parser.process_image(
+                                img_p, 
+                                bboxes=[bbox] if bbox else None, 
+                                angles=[angle] if bbox else None,
+                                rect_ws=[rect_w] if bbox else None,
+                                rect_hs=[rect_h] if bbox else None
+                            )
                             for res in results:
                                  # Show the crop before printing text
-                                 display_crop(img_p, bbox=res.get("bbox"), label=label, angle=angle)
+                                 display_crop(img_p, bbox=res.get("bbox"), label=label, angle=angle, rect_w=rect_w, rect_h=rect_h)
                                  raw_text = res.get('parsed_content', '')
                                  clean_text = clean_cord_output(raw_text)
                                  print(f"  Parsed (Cleaned): '{clean_text}'")
@@ -181,7 +189,7 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
     else:
          bbox_list = bboxes
 
-    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None)
+    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None, rect_ws=[0] if bbox_list else None, rect_hs=[0] if bbox_list else None)
     
     for i, res in enumerate(results):
         bbox_str = f" (BBox: {res.get('bbox')})" if res.get('bbox') else ""

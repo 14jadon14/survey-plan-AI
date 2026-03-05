@@ -23,7 +23,7 @@ class DocumentParser:
         self.model.eval()
         print("Model loaded successfully.")
 
-    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None) -> List[Dict[str, Any]]:
+    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, rect_ws: List[float] = None, rect_hs: List[float] = None) -> List[Dict[str, Any]]:
         """
         Process an image (and optional bounding boxes) to extract text using Donut.
 
@@ -52,18 +52,19 @@ class DocumentParser:
                     # Determine angle for this bbox
                     angle = angles[i] if angles and i < len(angles) and angles[i] else 0
                     
-                    # Basic validation and cropping
-                    if angle and angle != 0:
+                    # Basic validation                    # Determine explicit dimensions if available
+                    rect_w = rect_ws[i] if rect_ws and i < len(rect_ws) and rect_ws[i] else 0
+                    rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) and rect_hs[i] else 0
+                    
+                    if angle and angle != 0 and rect_w and rect_h:
                         # Deskew using OpenCV pad -> rotate -> crop
                         # This prevents the black box behavior seen with upright bounding boxes hitting PIL's rotate
                         img_arr = np.array(image)
                         xmin, ymin, xmax, ymax = bbox
                         cx = (xmin + xmax) / 2.0
                         cy = (ymin + ymax) / 2.0
-                        w = xmax - xmin
-                        h = ymax - ymin
                         
-                        pad = int(max(w, h) * 1.5)
+                        pad = int(max(rect_w, rect_h) * 1.5)
                         pxmin = max(0, int(cx - pad))
                         pxmax = min(img_arr.shape[1], int(cx + pad))
                         pymin = max(0, int(cy - pad))
@@ -85,12 +86,12 @@ class DocumentParser:
                             
                             # Usually rotated boxes are wider than tall
                             if angle < -45:
-                                h, w = w, h
+                                rect_h, rect_w = rect_w, rect_h
                                 
-                            rx1 = int(ncx - w/2)
-                            rx2 = int(ncx + w/2)
-                            ry1 = int(ncy - h/2)
-                            ry2 = int(ncy + h/2)
+                            rx1 = int(ncx - rect_w/2)
+                            rx2 = int(ncx + rect_w/2)
+                            ry1 = int(ncy - rect_h/2)
+                            ry2 = int(ncy + rect_h/2)
                             
                             final_crop_arr = rotated_padded[max(0, ry1):min(rotated_padded.shape[0], ry2), max(0, rx1):min(rotated_padded.shape[1], rx2)]
                             if final_crop_arr.size > 0:

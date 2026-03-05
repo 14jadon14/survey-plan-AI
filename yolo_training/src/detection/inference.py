@@ -121,6 +121,8 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                     score = float(prediction.score.value)
                     
                     angle = 0
+                    rect_w = 0
+                    rect_h = 0
                     if prediction.mask:
                         import cv2
                         import numpy as np
@@ -132,16 +134,22 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                                     largest_cnt = max(contours, key=cv2.contourArea)
                                     rect = cv2.minAreaRect(largest_cnt)
                                     angle = rect[2]
+                                    rect_w, rect_h = rect[1][0], rect[1][1]
                         except Exception as e:
                             print(f"[WARN] Failed to extract angle from mask: {e}")
 
                     if hasattr(prediction, 'extra_data') and prediction.extra_data and 'angle' in prediction.extra_data:
                         angle = prediction.extra_data['angle']
+                        if 'rect_w' in prediction.extra_data and 'rect_h' in prediction.extra_data:
+                            rect_w = prediction.extra_data['rect_w']
+                            rect_h = prediction.extra_data['rect_h']
                     
                     json_results.append({
                         "image_path": os.path.abspath(image_path),
                         "bbox": bbox,
                         "angle": angle,
+                        "rect_w": rect_w,
+                        "rect_h": rect_h,
                         "label": label,
                         "score": score
                     })
