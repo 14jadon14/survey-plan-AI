@@ -96,8 +96,7 @@ JSON_OUTPUT_FILENAME = "marketing_plan_assets.json"
 JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 
 # Labels to consider as text for document parsing
-# Add labels here that should be included in the JSON output
-# Example: ["text_block", "header", "table"]
-TEXT_LABELS = ["plan title", "lot number", "adj lot", "area", "coord table", "curve table", "line table", "notes", "curve data", "plan purpsoe", "title data", "plan date", "azimuth", "distance", "street", "text", "file num"] # Default list, user should update based on their model classes
+# Dynamically derived from LABEL_MAP keys to stay in sync
+TEXT_LABELS = list(LABEL_MAP.keys())
 
 
