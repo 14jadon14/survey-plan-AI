@@ -9,6 +9,42 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline import DocumentParser
 
+def display_crop(image, bbox=None, label=None):
+    """
+    Display an image or bounding box crop inline (Colab/Jupyter) before printing text.
+    Falls back to a print notice if not in a notebook.
+    """
+    try:
+        from IPython.display import display as ipy_display
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from PIL import Image as PILImage
+
+        if isinstance(image, str):
+            img = PILImage.open(image).convert("RGB")
+        else:
+            img = image.copy()
+
+        fig, ax = plt.subplots(1, figsize=(6, 4))
+        if bbox:
+            crop = img.crop(bbox)
+            ax.imshow(crop)
+            title = f"Crop {bbox}"
+        else:
+            ax.imshow(img)
+            title = "Full image"
+
+        if label:
+            title += f"  |  label: {label}"
+        ax.set_title(title, fontsize=9)
+        ax.axis("off")
+        plt.tight_layout()
+        ipy_display(fig)
+        plt.close(fig)
+    except Exception:
+        # Not in a notebook or matplotlib unavailable — just note it
+        print(f"[INFO] (Image display unavailable){' bbox: ' + str(bbox) if bbox else ''}")
+
 def clean_cord_output(text):
     """
     Temporary cleaning function to remove Donut XML tags from output.
@@ -82,6 +118,8 @@ def run_custom(image_path=None, bboxes=None, json_path=None):
                         try:
                             results = parser.process_image(img_p, bboxes=[bbox] if bbox else None)
                             for res in results:
+                                 # Show the crop before printing text
+                                 display_crop(img_p, bbox=res.get("bbox"), label=label)
                                  raw_text = res.get('parsed_content', '')
                                  clean_text = clean_cord_output(raw_text)
                                  print(f"  Parsed (Cleaned): '{clean_text}'")
@@ -143,6 +181,8 @@ def run_custom(image_path=None, bboxes=None, json_path=None):
     for i, res in enumerate(results):
         bbox_str = f" (BBox: {res.get('bbox')})" if res.get('bbox') else ""
         print(f"\n--- Result {i+1}{bbox_str} ---")
+        # Show the crop before printing text
+        display_crop(image_path, bbox=res.get("bbox"))
         raw_content = res.get('parsed_content')
         if raw_content:
             clean_content = clean_cord_output(raw_content)
