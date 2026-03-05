@@ -21,7 +21,7 @@ class DocumentParser:
         self.model.eval()
         print("Model loaded successfully.")
 
-    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None) -> List[Dict[str, Any]]:
+    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None) -> List[Dict[str, Any]]:
         """
         Process an image (and optional bounding boxes) to extract text using Donut.
 
@@ -29,6 +29,8 @@ class DocumentParser:
             image (str or PIL.Image.Image): Path to image or PIL Image object.
             bboxes (list of lists, optional): List of [xmin, ymin, xmax, ymax] coordinates.
                                               If None, processes the entire image.
+            angles (list of floats, optional): List of rotation angles corresponding to each bbox.
+                                               Used to deskew the crops before processing.
 
         Returns:
             List of dictionaries containing 'bbox' and 'parsed_content'.
@@ -42,11 +44,22 @@ class DocumentParser:
         
         results = []
         if bboxes:
-            for bbox in bboxes:
+            for i, bbox in enumerate(bboxes):
                 # Ensure bbox format is correct and within image bounds
                 try:
+                    # Determine angle for this bbox
+                    angle = angles[i] if angles and i < len(angles) and angles[i] else 0
+                    
                     # Basic validation and cropping
                     crop = image.crop(bbox)
+                    
+                    if angle and angle != 0:
+                        # Deskew crop by rotating in the opposite direction
+                        # PIL rotate accepts degrees counter-clockwise, so we negate the angle
+                        # Expand=True ensures the corners aren't cut off if it's rotated diagonally
+                        # We fill with black (or white, Donut handles both but black is safer for padding)
+                        crop = crop.rotate(-angle, expand=True, fillcolor="black")
+                    
                     parsed_content = self.parse_crop(crop)
                     results.append({"bbox": bbox, "parsed_content": parsed_content})
                 except Exception as e:

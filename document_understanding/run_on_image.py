@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline import DocumentParser
 
-def display_crop(image, bbox=None, label=None):
+def display_crop(image, bbox=None, label=None, angle=0):
     """
     Display an image or bounding box crop inline (Colab/Jupyter) before printing text.
     Falls back to a print notice if not in a notebook.
@@ -28,8 +28,10 @@ def display_crop(image, bbox=None, label=None):
         fig, ax = plt.subplots(1, figsize=(6, 4))
         if bbox:
             crop = img.crop(bbox)
+            if angle and angle != 0:
+                crop = crop.rotate(-angle, expand=True, fillcolor="black")
             ax.imshow(crop)
-            title = f"Crop {bbox}"
+            title = f"Crop {bbox}{' (rot: ' + str(round(angle, 1)) + ')' if angle else ''}"
         else:
             ax.imshow(img)
             title = "Full image"
@@ -63,7 +65,7 @@ def clean_cord_output(text):
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
     return cleaned
 
-def run_custom(image_path=None, bboxes=None, json_path=None):
+def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
     if json_path:
         if not os.path.exists(json_path):
             print(f"Error: JSON file not found at {json_path}")
@@ -116,10 +118,13 @@ def run_custom(image_path=None, bboxes=None, json_path=None):
 
                         print(f"\nProcessing item {i}: {img_p}")
                         try:
-                            results = parser.process_image(img_p, bboxes=[bbox] if bbox else None)
+                            # Read angle if present in json
+                            angle = item.get("angle", 0)
+
+                            results = parser.process_image(img_p, bboxes=[bbox] if bbox else None, angles=[angle] if bbox else None)
                             for res in results:
                                  # Show the crop before printing text
-                                 display_crop(img_p, bbox=res.get("bbox"), label=label)
+                                 display_crop(img_p, bbox=res.get("bbox"), label=label, angle=angle)
                                  raw_text = res.get('parsed_content', '')
                                  clean_text = clean_cord_output(raw_text)
                                  print(f"  Parsed (Cleaned): '{clean_text}'")
@@ -176,7 +181,7 @@ def run_custom(image_path=None, bboxes=None, json_path=None):
     else:
          bbox_list = bboxes
 
-    results = parser.process_image(image_path, bboxes=bbox_list)
+    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None)
     
     for i, res in enumerate(results):
         bbox_str = f" (BBox: {res.get('bbox')})" if res.get('bbox') else ""
@@ -202,6 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", help="Path to the image file to process.")
     parser.add_argument("--bbox", nargs=4, type=int, metavar=('xmin', 'ymin', 'xmax', 'ymax'),
                         help="Optional bounding box coordinates (xmin ymin xmax ymax).")
+    parser.add_argument("--angle", type=float, default=0, help="Optional angle of the bounding box.")
     parser.add_argument("--json", help="Path to a JSON file containing processing instructions.")
     
     args = parser.parse_args()
@@ -210,4 +216,4 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
         
-    run_custom(image_path=args.image_path, bboxes=args.bbox, json_path=args.json)
+    run_custom(image_path=args.image_path, bboxes=args.bbox, angle=args.angle, json_path=args.json)
