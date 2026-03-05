@@ -39,7 +39,7 @@ def display_crop(image, bbox=None, label=None):
         ax.set_title(title, fontsize=9)
         ax.axis("off")
         plt.tight_layout()
-        ipy_display(fig)
+        plt.show()
         plt.close(fig)
     except Exception:
         # Not in a notebook or matplotlib unavailable — just note it
