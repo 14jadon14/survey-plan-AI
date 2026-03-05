@@ -92,7 +92,7 @@ if not os.path.exists(GOOGLE_DRIVE_PATH):
 
     GOOGLE_DRIVE_PATH = RUNS_DIR 
 
-JSON_OUTPUT_FILENAME = "marketing_plan_assets.json"
+JSON_OUTPUT_FILENAME = "crop_parameters.json"
 JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 
 # Labels to consider as text for document parsing

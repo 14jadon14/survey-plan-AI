@@ -159,7 +159,7 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
 
     # Save JSON if enabled
     if config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False) and json_results:
-        json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "detected_assets.json"))
+        json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "crop_parameters.json"))
         # Ensure directory exists for json
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
         
