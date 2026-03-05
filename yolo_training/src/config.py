@@ -2,11 +2,11 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 32
-IMGSZ = 800
+BATCH_SIZE = 16
+IMGSZ = 1024
 EPOCHS = 60
-SLICE_HEIGHT = 1280
-SLICE_WIDTH = 1280
+SLICE_HEIGHT = 2048
+SLICE_WIDTH = 2048
 OVERLAP_HEIGHT_RATIO = 0.5
 OVERLAP_WIDTH_RATIO = 0.5
 ROTATION_DEGREES = 2.0 # Augmentation parameter
@@ -19,7 +19,7 @@ CLOSE_MOSAIC_EPOCHS = 10
 PATIENCE = 20
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.50
+CONF_THRESHOLD = 0.40
 SAHI_POSTPROCESS_TYPE = "NMM"
 SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
