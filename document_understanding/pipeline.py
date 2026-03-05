@@ -1,6 +1,8 @@
 
 import torch
 import re
+import cv2
+import numpy as np
 from PIL import Image
 from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
@@ -51,14 +53,54 @@ class DocumentParser:
                     angle = angles[i] if angles and i < len(angles) and angles[i] else 0
                     
                     # Basic validation and cropping
-                    crop = image.crop(bbox)
-                    
                     if angle and angle != 0:
-                        # Deskew crop by rotating in the opposite direction
-                        # PIL rotate accepts degrees counter-clockwise, so we negate the angle
-                        # Expand=True ensures the corners aren't cut off if it's rotated diagonally
-                        # We fill with black (or white, Donut handles both but black is safer for padding)
-                        crop = crop.rotate(-angle, expand=True, fillcolor="black")
+                        # Deskew using OpenCV pad -> rotate -> crop
+                        # This prevents the black box behavior seen with upright bounding boxes hitting PIL's rotate
+                        img_arr = np.array(image)
+                        xmin, ymin, xmax, ymax = bbox
+                        cx = (xmin + xmax) / 2.0
+                        cy = (ymin + ymax) / 2.0
+                        w = xmax - xmin
+                        h = ymax - ymin
+                        
+                        pad = int(max(w, h) * 1.5)
+                        pxmin = max(0, int(cx - pad))
+                        pxmax = min(img_arr.shape[1], int(cx + pad))
+                        pymin = max(0, int(cy - pad))
+                        pymax = min(img_arr.shape[0], int(cy + pad))
+                        
+                        padded_crop = img_arr[pymin:pymax, pxmin:pxmax]
+                        
+                        if padded_crop.size > 0:
+                            ncx = cx - pxmin
+                            ncy = cy - pymin
+                            # Angle from cv2.minAreaRect is negative for counter-clockwise
+                            # cv2.getRotationMatrix2D expects positive for counter-clockwise
+                            # However, empirical testing shows Donut angle mapping needs direct use
+                            M_padded = cv2.getRotationMatrix2D((ncx, ncy), angle, 1.0)
+                            rotated_padded = cv2.warpAffine(
+                                padded_crop, M_padded, (padded_crop.shape[1], padded_crop.shape[0]), 
+                                flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0)
+                            )
+                            
+                            # Usually rotated boxes are wider than tall
+                            if angle < -45:
+                                h, w = w, h
+                                
+                            rx1 = int(ncx - w/2)
+                            rx2 = int(ncx + w/2)
+                            ry1 = int(ncy - h/2)
+                            ry2 = int(ncy + h/2)
+                            
+                            final_crop_arr = rotated_padded[max(0, ry1):min(rotated_padded.shape[0], ry2), max(0, rx1):min(rotated_padded.shape[1], rx2)]
+                            if final_crop_arr.size > 0:
+                                crop = Image.fromarray(final_crop_arr)
+                            else:
+                                crop = image.crop(bbox) # fallback if empty
+                        else:
+                            crop = image.crop(bbox)
+                    else:
+                        crop = image.crop(bbox)
                     
                     parsed_content = self.parse_crop(crop)
                     results.append({"bbox": bbox, "parsed_content": parsed_content})
