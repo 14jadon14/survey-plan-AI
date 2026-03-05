@@ -16,7 +16,7 @@ CACHE_RAM = True
 COS_LR = True
 AMP = True
 CLOSE_MOSAIC_EPOCHS = 10
-PATIENCE = 20
+PATIENCE = 10
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.40
