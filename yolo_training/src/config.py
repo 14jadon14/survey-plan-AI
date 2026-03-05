@@ -54,7 +54,6 @@ LABEL_MAP = {
     "north arrow": ["north arrow"],
     "notes": ["notes"],
     "pin num": ["pin num"],
-    "plan date": ["plan date"],
     "plan title": ["plan title"],
     "ribf": ["ribf"],
     "scale bar": ["scale bar"],
@@ -62,7 +61,7 @@ LABEL_MAP = {
     "sms": ["sms"],
     "sqib": ["sqib"],
     "street": ["street"],
-    "text": ["text", "title data", "plan purpsoe", "file num"],
+    "text": ["text", "title data", "plan purpsoe", "file num", "plan date"],
     "signature": ["owner signature", "nbls signature"]
 }
 
