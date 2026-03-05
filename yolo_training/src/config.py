@@ -5,8 +5,8 @@ import os
 BATCH_SIZE = 16
 IMGSZ = 1024
 EPOCHS = 60
-SLICE_HEIGHT = 2048
-SLICE_WIDTH = 2048
+SLICE_HEIGHT = 1024
+SLICE_WIDTH = 1024
 OVERLAP_HEIGHT_RATIO = 0.5
 OVERLAP_WIDTH_RATIO = 0.5
 ROTATION_DEGREES = 2.0 # Augmentation parameter
@@ -15,11 +15,11 @@ AUG_FLIPLR = 0.0
 CACHE_RAM = True
 COS_LR = True
 AMP = True
-CLOSE_MOSAIC_EPOCHS = 10
+CLOSE_MOSAIC_EPOCHS = 15
 PATIENCE = 10
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.40
+CONF_THRESHOLD = 0.30
 SAHI_POSTPROCESS_TYPE = "NMM"
 SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
@@ -67,7 +67,7 @@ LABEL_MAP = {
 
 # Hybrid Training (Slices + Global Context)
 HYBRID_TRAINING = True
-GLOBAL_RESIZE_SIZE = 1024
+GLOBAL_RESIZE_SIZE = 2048
 
 # Paths
 # Default to local relative paths, but can be overridden
