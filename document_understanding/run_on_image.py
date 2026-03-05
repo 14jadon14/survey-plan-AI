@@ -11,14 +11,18 @@ from pipeline import DocumentParser
 
 def clean_cord_output(text):
     """
-    Temporary cleaning function to remove CORD-v2 XML tags from Donut output.
+    Temporary cleaning function to remove Donut XML tags from output.
     TODO: Remove this once a dedicated model is fine-tuned for semantic labeling.
     """
     if not text:
         return ""
         
+    # Strip out specific tags that Donut hallucinates
+    cleaned = re.sub(r'</?s_menu>', ' ', text)
+    cleaned = re.sub(r'</?s_price>', ' ', cleaned)
+    
     # Remove HTML-like tags
-    cleaned = re.sub(r'<.*?>', '', text)
+    cleaned = re.sub(r'<.*?>', '', cleaned)
     # Collapse multiple spaces
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
     return cleaned

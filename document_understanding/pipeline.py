@@ -6,13 +6,13 @@ from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
 
 class DocumentParser:
-    def __init__(self, model_path: str = "naver-clova-ix/donut-base-finetuned-cord-v2"):
+    def __init__(self, model_path: str = "naver-clova-ix/donut-base-finetuned-docvqa"):
         """
         Initialize the DocumentParser with a Donut model.
         
         Args:
             model_path (str): HeightFace model hub path or local path to the Donut model.
-                              Defaults to 'naver-clova-ix/donut-base-finetuned-cord-v2'.
+                              Defaults to 'naver-clova-ix/donut-base-finetuned-docvqa'.
         """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading Donut model from {model_path} on {self.device}...")
@@ -75,7 +75,7 @@ class DocumentParser:
         # We act as if we are starting generation. 
         # For base model, we can start with the decoder_start_token_id if available,
         # otherwise use a standard token.
-        task_prompt = "<s_cord-v2>" # Specific to CORD finetuning, might explicitly fail on base if token not in vocab.
+        task_prompt = "<s_docvqa>" # Specific to DocVQA finetuning
         
         # Check if task prompt token exists in tokenizer, otherwise use default start token
         if task_prompt in self.processor.tokenizer.get_vocab():
