@@ -36,3 +36,9 @@ local_test.log
 # Model weights
 *.pt
 
+# Node / Frontend
+node_modules/
+dist/
+build/
+.env.local
+.DS_Store

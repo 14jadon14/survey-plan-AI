@@ -1,0 +1,28 @@
+name: surveyplan-ai
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8 # Or 12.1 depending on the user's local GPU drivers
+  - pip:
+      - numpy<2
+      - ultralytics==8.1.0 # Or the specific YOLO version used in Colab
+      - sahi>=0.11.16
+      - fastapi
+      - uvicorn[standard]
+      - python-multipart
+      - ezdxf
+      - pandas
+      - transformers==4.35.0 # For Donut model
+      - sentencepiece
+      - protobuf
+      - timm
+      - pillow
+      - opencv-python-headless<4.11.0
