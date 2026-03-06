@@ -75,17 +75,19 @@ class DocumentParser:
                         if padded_crop.size > 0:
                             ncx = cx - pxmin
                             ncy = cy - pymin
-                            # Angle from cv2.minAreaRect is negative for counter-clockwise
-                            # cv2.getRotationMatrix2D expects positive for counter-clockwise
-                            # However, empirical testing shows Donut angle mapping needs direct use
-                            M_padded = cv2.getRotationMatrix2D((ncx, ncy), angle, 1.0)
+                            # cv2.minAreaRect now returns angles in [0°, 90°) on OpenCV 4.5.1+.
+                            # To deskew (return text to horizontal), we rotate by -angle.
+                            # Positive angle in new convention = tilt direction; negating gives
+                            # the counter-clockwise correction needed to flatten the text.
+                            M_padded = cv2.getRotationMatrix2D((ncx, ncy), -angle, 1.0)
                             rotated_padded = cv2.warpAffine(
                                 padded_crop, M_padded, (padded_crop.shape[1], padded_crop.shape[0]), 
                                 flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0)
                             )
                             
-                            # Usually rotated boxes are wider than tall
-                            if angle < -45:
+                            # angle > 45° means the long axis of the box is more vertical.
+                            # Swap so rect_w is always the long (horizontal-after-deskew) dimension.
+                            if angle > 45:
                                 rect_h, rect_w = rect_w, rect_h
                                 
                             rx1 = int(ncx - rect_w/2)

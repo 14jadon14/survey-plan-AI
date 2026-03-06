@@ -1,8 +1,13 @@
 import os
 import glob
 import argparse
-from sahi import AutoDetectionModel
+import math
+import numpy as np
+import cv2
+from sahi.models.ultralytics import UltralyticsDetectionModel
+from sahi.prediction import ObjectPrediction
 from sahi.predict import get_sliced_prediction
+from sahi.utils.compatibility import fix_full_shape_list, fix_shift_amount_list
 import torch
 import json
 import sys
@@ -20,9 +25,118 @@ except ImportError:
     print("[WARNING] Could not import config.py. Using default values.")
     config = None
 
-def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=None, conf_thres=None):
+
+class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
+    """
+    Extends SAHI's UltralyticsDetectionModel to preserve OBB angle and rotated
+    dimensions.  SAHI already stores the four corner points
+    (result.obb.xyxyxyxy) in `masks_or_points`, but it never computes the
+    angle from them.  We override
+    `_create_object_prediction_list_from_original_predictions` to call
+    cv2.minAreaRect on those corners and store
+    {angle, rect_w, rect_h} in ObjectPrediction.extra_data.
+
+    This adds zero inference overhead — the corner data was already computed
+    by Ultralytics internally.
+    """
+
+    def _create_object_prediction_list_from_original_predictions(
+        self,
+        shift_amount_list=None,
+        full_shape_list=None,
+    ):
+        """Identical to the parent implementation, but populates extra_data
+        with OBB geometry when this is an OBB model."""
+        if shift_amount_list is None:
+            shift_amount_list = [[0, 0]]
+
+        original_predictions = self._original_predictions
+        shift_amount_list = fix_shift_amount_list(shift_amount_list)
+        full_shape_list = fix_full_shape_list(full_shape_list)
+
+        object_prediction_list_per_image = []
+
+        for image_ind, image_predictions in enumerate(original_predictions):
+            shift_amount = shift_amount_list[image_ind]
+            full_shape = None if full_shape_list is None else full_shape_list[image_ind]
+            object_prediction_list = []
+
+            if self.has_mask or self.is_obb:
+                boxes = image_predictions[0].cpu().detach().numpy()
+                masks_or_points = image_predictions[1].cpu().detach().numpy()
+            else:
+                boxes = image_predictions.data.cpu().detach().numpy()
+                masks_or_points = None
+
+            for pred_ind, prediction in enumerate(boxes):
+                bbox = prediction[:4].tolist()
+                score = prediction[4]
+                category_id = int(prediction[5])
+                category_name = self.category_mapping[str(category_id)]
+
+                bbox = [max(0, coord) for coord in bbox]
+                if full_shape is not None:
+                    bbox[0] = min(full_shape[1], bbox[0])
+                    bbox[1] = min(full_shape[0], bbox[1])
+                    bbox[2] = min(full_shape[1], bbox[2])
+                    bbox[3] = min(full_shape[0], bbox[3])
+
+                if not (bbox[0] < bbox[2]) or not (bbox[1] < bbox[3]):
+                    continue
+
+                segmentation = None
+                extra_data = {}
+
+                if masks_or_points is not None:
+                    if self.has_mask:
+                        # Segmentation mask — unchanged from parent
+                        from sahi.utils.cv import get_coco_segmentation_from_bool_mask
+                        bool_mask = masks_or_points[pred_ind]
+                        bool_mask = cv2.resize(
+                            bool_mask.astype(np.uint8),
+                            (self._original_shape[1], self._original_shape[0])
+                        )
+                        segmentation = [get_coco_segmentation_from_bool_mask(bool_mask)]
+                    else:
+                        # OBB: xyxyxyxy corner points, shape (4, 2)
+                        obb_points = masks_or_points[pred_ind]  # (4, 2)
+                        segmentation = [obb_points.reshape(-1).tolist()]
+
+                        # Derive angle and rotated dimensions from corner points
+                        try:
+                            pts = obb_points.reshape((4, 1, 2)).astype(np.float32)
+                            rect = cv2.minAreaRect(pts)  # ((cx,cy), (w,h), angle_deg)
+                            angle = rect[2]   # degrees, OpenCV convention
+                            rw, rh = rect[1][0], rect[1][1]
+                            extra_data = {"angle": float(angle), "rect_w": float(rw), "rect_h": float(rh)}
+                        except Exception as e:
+                            print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute minAreaRect: {e}")
+
+                    if segmentation is not None and len(segmentation) == 0:
+                        continue
+
+                object_prediction = ObjectPrediction(
+                    bbox=bbox,
+                    category_id=category_id,
+                    score=score,
+                    segmentation=segmentation,
+                    category_name=category_name,
+                    shift_amount=shift_amount,
+                    full_shape=self._original_shape[:2] if full_shape is None else full_shape,
+                )
+                if extra_data:
+                    object_prediction.extra_data = extra_data
+                object_prediction_list.append(object_prediction)
+
+            object_prediction_list_per_image.append(object_prediction_list)
+
+        self._object_prediction_list_per_image = object_prediction_list_per_image
+
+def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=None, conf_thres=None, json_output=None):
     """
     Runs SAHI sliced inference on a set of images.
+    Uses OBBUltralyticsDetectionModel to preserve OBB angle geometry in
+    ObjectPrediction.extra_data without any additional inference cost.
     """
     print(f"[INFO] Initializing SAHI with model: {model_path}")
     
@@ -30,12 +144,12 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
     print(f"[INFO] Using device: {device}")
 
     try:
-        detection_model = AutoDetectionModel.from_pretrained(
-            model_type='ultralytics',
+        detection_model = OBBUltralyticsDetectionModel(
             model_path=model_path,
             confidence_threshold=conf_thres if conf_thres else (getattr(config, 'CONF_THRESHOLD', 0.60) if config else 0.60),
             device=device
         )
+        detection_model.load_model()
     except Exception as e:
         print(f"[ERROR] Failed to load model: {e}")
         return
@@ -100,66 +214,54 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 file_name=image_name.replace(os.path.splitext(image_name)[1], '')
             )
             
-            # Collect results for JSON if enabled
-            if config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False):
-                text_labels = getattr(config, 'TEXT_LABELS', [])
+            # Collect results for JSON output.
+            # Always gather results — saving to disk is gated separately below.
+            # This ensures the API path (Scenario 3) gets angle data even when
+            # SAVE_JSON_FOR_DOC_PARSING is False.
+            text_labels = getattr(config, 'TEXT_LABELS', []) if config else []
+            
+            for prediction in result.object_prediction_list:
+                label = prediction.category.name
                 
-                for prediction in result.object_prediction_list:
-                    label = prediction.category.name
-                    
-                    # Filter by label if TEXT_LABELS is defined and not empty
-                    if text_labels and label not in text_labels:
-                        continue
+                # Filter by label if TEXT_LABELS is defined and not empty
+                if text_labels and label not in text_labels:
+                    continue
 
-                    # SAHI bbox is [xmin, ymin, xmax, ymax] via to_xyxy()
-                    # But verifying SAHI API: bbox is a BoundingBox object.
-                    # It usually holds [minx, miny, maxx, maxy] in .to_xyxy()
-                    bbox = prediction.bbox.to_xyxy()
-                    # Convert to int list
-                    bbox = [int(x) for x in bbox]
-                    
-                    score = float(prediction.score.value)
-                    
-                    angle = 0
-                    rect_w = 0
-                    rect_h = 0
-                    if prediction.mask:
-                        import cv2
-                        import numpy as np
-                        try:
-                            if hasattr(prediction.mask, 'bool_mask'):
-                                mask_arr = prediction.mask.bool_mask.astype(np.uint8)
-                                contours, _ = cv2.findContours(mask_arr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                                if contours:
-                                    largest_cnt = max(contours, key=cv2.contourArea)
-                                    rect = cv2.minAreaRect(largest_cnt)
-                                    angle = rect[2]
-                                    rect_w, rect_h = rect[1][0], rect[1][1]
-                        except Exception as e:
-                            print(f"[WARN] Failed to extract angle from mask: {e}")
+                bbox = prediction.bbox.to_xyxy()
+                bbox = [int(x) for x in bbox]
+                score = float(prediction.score.value)
 
-                    if hasattr(prediction, 'extra_data') and prediction.extra_data and 'angle' in prediction.extra_data:
-                        angle = prediction.extra_data['angle']
-                        if 'rect_w' in prediction.extra_data and 'rect_h' in prediction.extra_data:
-                            rect_w = prediction.extra_data['rect_w']
-                            rect_h = prediction.extra_data['rect_h']
-                    
-                    json_results.append({
-                        "image_path": os.path.abspath(image_path),
-                        "bbox": bbox,
-                        "angle": angle,
-                        "rect_w": rect_w,
-                        "rect_h": rect_h,
-                        "label": label,
-                        "score": score
-                    })
+                # Read angle/dims populated by OBBUltralyticsDetectionModel.extra_data
+                angle = 0.0
+                rect_w = 0.0
+                rect_h = 0.0
+                if hasattr(prediction, 'extra_data') and prediction.extra_data:
+                    angle = prediction.extra_data.get('angle', 0.0)
+                    rect_w = prediction.extra_data.get('rect_w', 0.0)
+                    rect_h = prediction.extra_data.get('rect_h', 0.0)
+                
+                json_results.append({
+                    "image_path": os.path.abspath(image_path),
+                    "bbox": bbox,
+                    "angle": angle,
+                    "rect_w": rect_w,
+                    "rect_h": rect_h,
+                    "label": label,
+                    "score": score
+                })
 
         except Exception as e:
             print(f"[ERROR] Failed to process {image_name}: {e}")
 
-    # Save JSON if enabled
-    if config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False) and json_results:
-        json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "crop_parameters.json"))
+    # Save JSON to disk.
+    # Triggered when: an explicit json_output path is passed (API/Colab call),
+    # OR the config flag SAVE_JSON_FOR_DOC_PARSING is True.
+    should_save_json = json_output or (config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False))
+    if should_save_json and json_results:
+        if json_output:
+            json_path = json_output
+        else:
+            json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "crop_parameters.json"))
         # Ensure directory exists for json
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
         
@@ -180,6 +282,7 @@ def main():
     parser.add_argument('--slice_wh', type=int, default=None, help='Slice width and height (square, defaults to config)')
     parser.add_argument('--overlap', type=float, default=None, help='Overlap ratio (0-1, defaults to config)')
     parser.add_argument('--conf', type=float, default=None, help='Confidence threshold (defaults to config)')
+    parser.add_argument('--json_output', type=str, default=None, help='Specific path to save the JSON output')
     
     args = parser.parse_args()
 
@@ -189,7 +292,8 @@ def main():
         output_dir=args.output_dir,
         slice_wh=args.slice_wh,
         overlap_ratio=args.overlap,
-        conf_thres=args.conf
+        conf_thres=args.conf,
+        json_output=args.json_output
     )
 
 if __name__ == "__main__":
