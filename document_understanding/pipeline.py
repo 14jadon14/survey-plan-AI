@@ -57,51 +57,55 @@ class DocumentParser:
                     rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) and rect_hs[i] else 0
                     
                     if angle and angle != 0 and rect_w and rect_h:
-                        # Deskew using OpenCV pad -> rotate -> crop
-                        # This prevents the black box behavior seen with upright bounding boxes hitting PIL's rotate
+                        # Deskew using a four-point warp transform (warpPerspective)
+                        # This extracts exactly the OBB region without adjacent noise
                         img_arr = np.array(image)
                         xmin, ymin, xmax, ymax = bbox
                         cx = (xmin + xmax) / 2.0
                         cy = (ymin + ymax) / 2.0
                         
-                        pad = int(max(rect_w, rect_h) * 1.5)
-                        pxmin = max(0, int(cx - pad))
-                        pxmax = min(img_arr.shape[1], int(cx + pad))
-                        pymin = max(0, int(cy - pad))
-                        pymax = min(img_arr.shape[0], int(cy + pad))
+                        # Get 4 corners of the rotated bounding box
+                        box = cv2.boxPoints(((cx, cy), (rect_w, rect_h), angle))
+                        src_pts = np.array(box, dtype="float32")
                         
-                        padded_crop = img_arr[pymin:pymax, pxmin:pxmax]
+                        # Helper to order points: top-left, top-right, bottom-right, bottom-left
+                        s = src_pts.sum(axis=1)
+                        diff = np.diff(src_pts, axis=1) # y - x
                         
-                        if padded_crop.size > 0:
-                            ncx = cx - pxmin
-                            ncy = cy - pymin
-                            # cv2.minAreaRect now returns angles in [0°, 90°) on OpenCV 4.5.1+.
-                            # To deskew (return text to horizontal), we rotate by -angle.
-                            # Positive angle in new convention = tilt direction; negating gives
-                            # the counter-clockwise correction needed to flatten the text.
-                            M_padded = cv2.getRotationMatrix2D((ncx, ncy), -angle, 1.0)
-                            rotated_padded = cv2.warpAffine(
-                                padded_crop, M_padded, (padded_crop.shape[1], padded_crop.shape[0]), 
-                                flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0)
-                            )
+                        rect_pts = np.zeros((4, 2), dtype="float32")
+                        rect_pts[0] = src_pts[np.argmin(s)]     # top-left
+                        rect_pts[2] = src_pts[np.argmax(s)]     # bottom-right
+                        rect_pts[1] = src_pts[np.argmin(diff)]  # top-right
+                        rect_pts[3] = src_pts[np.argmax(diff)]  # bottom-left
+                        
+                        # Compute width and height of the tight crop
+                        wA = np.linalg.norm(rect_pts[2] - rect_pts[3]) # bottom-right to bottom-left
+                        wB = np.linalg.norm(rect_pts[1] - rect_pts[0]) # top-right to top-left
+                        max_w = max(int(wA), int(wB))
+
+                        hA = np.linalg.norm(rect_pts[1] - rect_pts[2]) # top-right to bottom-right
+                        hB = np.linalg.norm(rect_pts[0] - rect_pts[3]) # top-left to bottom-left
+                        max_h = max(int(hA), int(hB))
+
+                        # Ensure text is horizontal (width > height usually for text boxes)
+                        if max_h > max_w:
+                            # rotate text orientation 90 degrees to make it horizontal
+                            rect_pts = np.array([rect_pts[3], rect_pts[0], rect_pts[1], rect_pts[2]], dtype="float32")
+                            max_w, max_h = max_h, max_w
+
+                        dst_pts = np.array([
+                            [0, 0],
+                            [max_w - 1, 0],
+                            [max_w - 1, max_h - 1],
+                            [0, max_h - 1]], dtype="float32")
                             
-                            # angle > 45° means the long axis of the box is more vertical.
-                            # Swap so rect_w is always the long (horizontal-after-deskew) dimension.
-                            if angle > 45:
-                                rect_h, rect_w = rect_w, rect_h
-                                
-                            rx1 = int(ncx - rect_w/2)
-                            rx2 = int(ncx + rect_w/2)
-                            ry1 = int(ncy - rect_h/2)
-                            ry2 = int(ncy + rect_h/2)
-                            
-                            final_crop_arr = rotated_padded[max(0, ry1):min(rotated_padded.shape[0], ry2), max(0, rx1):min(rotated_padded.shape[1], rx2)]
-                            if final_crop_arr.size > 0:
-                                crop = Image.fromarray(final_crop_arr)
-                            else:
-                                crop = image.crop(bbox) # fallback if empty
+                        M_warp = cv2.getPerspectiveTransform(rect_pts, dst_pts)
+                        warped = cv2.warpPerspective(img_arr, M_warp, (max_w, max_h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0))
+                        
+                        if warped.size > 0:
+                            crop = Image.fromarray(warped)
                         else:
-                            crop = image.crop(bbox)
+                            crop = image.crop(bbox) # fallback if empty
                     else:
                         crop = image.crop(bbox)
                     

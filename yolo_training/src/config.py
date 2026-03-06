@@ -96,7 +96,9 @@ JSON_OUTPUT_FILENAME = "crop_parameters.json"
 JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 
 # Labels to consider as text for document parsing
-# Dynamically derived from LABEL_MAP keys to stay in sync
-TEXT_LABELS = list(LABEL_MAP.keys())
+# Define labels to exclude from document parsing
+EXCLUDED_FROM_TEXT = ["smf", "sms", "sqib", "ip", "ribf", "scale bar", "north arrow", "signature", "counsel stamp", "dev stamp", "anbls valnum", "pin num", "calc", "key plan", "legend"]
 
+# Dynamically derive text labels but subtract the excluded ones
+TEXT_LABELS = [label for label in LABEL_MAP.keys() if label not in EXCLUDED_FROM_TEXT]
 
