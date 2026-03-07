@@ -318,24 +318,23 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
         except Exception as e:
             print(f"[ERROR] Failed to process {image_name}: {e}")
 
-    # Save JSON to disk.
-    # Triggered when: an explicit json_output path is passed (API/Colab call),
-    # OR the config flag SAVE_JSON_FOR_DOC_PARSING is True.
-    should_save_json = json_output or (config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False))
-    if should_save_json and json_results:
-        if json_output:
-            json_path = json_output
-        else:
-            json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "crop_parameters.json"))
-        # Ensure directory exists for json
-        os.makedirs(os.path.dirname(json_path), exist_ok=True)
-        
-        try:
-            with open(json_path, 'w') as f:
-                json.dump(json_results, f, indent=2)
-            print(f"[INFO] Saved detection results to {json_path}")
-        except Exception as e:
-             print(f"[ERROR] Failed to save JSON to {json_path}: {e}")
+        # --- INCREMENTAL JSON SAVE ---
+        # Save JSON to disk after every image so that early termination (Ctrl+C in Colab)
+        # still yields usable partial results.
+        should_save_json = json_output or (config and getattr(config, 'SAVE_JSON_FOR_DOC_PARSING', False))
+        if should_save_json and json_results:
+            if json_output:
+                json_path = json_output
+            else:
+                json_path = getattr(config, 'JSON_OUTPUT_PATH', os.path.join(output_dir, "crop_parameters.json"))
+            
+            os.makedirs(os.path.dirname(json_path), exist_ok=True)
+            try:
+                with open(json_path, 'w') as f:
+                    json.dump(json_results, f, indent=2)
+            except Exception as e:
+                 print(f"[ERROR] Failed to save incremental JSON to {json_path}: {e}")
+        # -----------------------------
 
     print(f"[INFO] Inference complete. Results saved to {output_dir}")
 
