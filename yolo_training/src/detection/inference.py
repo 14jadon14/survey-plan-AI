@@ -128,6 +128,9 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             rect_w = math.hypot(br[0] - bl[0], br[1] - bl[1])
                             rect_h = math.hypot(tl[0] - bl[0], tl[1] - bl[1])
                             
+                            # DEBUG: print raw corner data and computed angle
+                            print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl} | angle={angle_deg:.2f} | w={rect_w:.1f} h={rect_h:.1f}")
+                            
                             extra_data = {"angle": float(angle_deg), "rect_w": float(rect_w), "rect_h": float(rect_h)}
                         except Exception as e:
                             print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute OBB geometry: {e}")
