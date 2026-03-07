@@ -135,7 +135,7 @@ class DocumentParser:
         # We act as if we are starting generation. 
         # For base model, we can start with the decoder_start_token_id if available,
         # otherwise use a standard token.
-        task_prompt = "<s_docvqa>" # Specific to DocVQA finetuning
+        task_prompt = "<s_synthdog>" # Synthetic OCR basic reading task
         
         # Check if task prompt token exists in tokenizer, otherwise use default start token
         if task_prompt in self.processor.tokenizer.get_vocab():
