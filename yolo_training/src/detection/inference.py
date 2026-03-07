@@ -102,33 +102,32 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                         obb_points = masks_or_points[pred_ind]  # (4, 2)
                         segmentation = [obb_points.reshape(-1).tolist()]
 
-                        # Derive pure geometry angle and dimensions from ordered OBB corner points.
+                        # Derive angle from OBB corners with consistent ordering.
+                        # In image coordinates: x increases rightward, y increases downward.
                         try:
-                            p0, p1, p2, p3 = obb_points
+                            pts = obb_points.reshape(4, 2)
                             
-                            # Calculate adjacent edge lengths
-                            edge1_len = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
-                            edge2_len = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+                            # Sort corners into consistent TL, TR, BR, BL order.
+                            # Sum (x+y): smallest = TL (top-left), largest = BR (bottom-right)
+                            # Diff (y-x): smallest = TR (top-right), largest = BL (bottom-left)
+                            s = pts.sum(axis=1)
+                            diff = np.diff(pts, axis=1).flatten()
                             
-                            # Assume the longer edge is the width (text is typically wider than tall)
-                            if edge1_len >= edge2_len:
-                                rect_w, rect_h = edge1_len, edge2_len
-                                dx = p1[0] - p0[0]
-                                dy = p1[1] - p0[1]
-                            else:
-                                rect_w, rect_h = edge2_len, edge1_len
-                                dx = p2[0] - p1[0]
-                                dy = p2[1] - p1[1]
-                                
-                            # Calculate true baseline angle (-180 to 180 degrees)
+                            tl = pts[np.argmin(s)]
+                            br = pts[np.argmax(s)]
+                            tr = pts[np.argmin(diff)]
+                            bl = pts[np.argmax(diff)]
+                            
+                            # Compute angle of the bottom edge (BL → BR) relative to horizontal.
+                            # This tells us how much the box is tilted from the x-axis.
+                            dx = br[0] - bl[0]
+                            dy = br[1] - bl[1]
                             angle_deg = math.degrees(math.atan2(dy, dx))
                             
-                            # Normalize angle to [-90, 90)
-                            if angle_deg >= 90:
-                                angle_deg -= 180
-                            elif angle_deg < -90:
-                                angle_deg += 180
-                                
+                            # Compute width (bottom edge length) and height (left edge length)
+                            rect_w = math.hypot(br[0] - bl[0], br[1] - bl[1])
+                            rect_h = math.hypot(tl[0] - bl[0], tl[1] - bl[1])
+                            
                             extra_data = {"angle": float(angle_deg), "rect_w": float(rect_w), "rect_h": float(rect_h)}
                         except Exception as e:
                             print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute OBB geometry: {e}")
