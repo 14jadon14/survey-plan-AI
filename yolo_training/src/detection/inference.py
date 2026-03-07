@@ -233,6 +233,12 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             if _perform_std_pred:
                 print(f"  [INFO] Global context enabled (full-image standard prediction)")
 
+            # CLEAR SAHI INTERNAL CACHES
+            # SAHI's get_sliced_prediction calls perform_inference multiple times.
+            # We must wipe the previous image's cached predictions from the model instance
+            # to prevent cross-image contamination during the merge phase.
+            detection_model._object_prediction_list_per_image = []
+
             result = get_sliced_prediction(
                 image_path,
                 detection_model,
