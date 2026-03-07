@@ -9,13 +9,13 @@ from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
 
 class DocumentParser:
-    def __init__(self, model_path: str = "naver-clova-ix/donut-base-finetuned-docvqa"):
+    def __init__(self, model_path: str = "naver-clova-ix/donut-base"):
         """
         Initialize the DocumentParser with a Donut model.
         
         Args:
-            model_path (str): HeightFace model hub path or local path to the Donut model.
-                              Defaults to 'naver-clova-ix/donut-base-finetuned-docvqa'.
+            model_path (str): HuggingFace model hub path or local path to the Donut model.
+                              Defaults to 'naver-clova-ix/donut-base'.
         """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading Donut model from {model_path} on {self.device}...")
