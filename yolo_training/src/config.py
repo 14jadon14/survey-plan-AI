@@ -15,7 +15,7 @@ AUG_FLIPLR = 0.0
 CACHE_RAM = True
 COS_LR = True
 AMP = True
-CLOSE_MOSAIC_EPOCHS = 1
+CLOSE_MOSAIC_EPOCHS = 2
 PATIENCE = 20
 
 # Inference Hyperparameters
