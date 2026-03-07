@@ -170,8 +170,8 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
         self._object_prediction_list_per_image = object_prediction_list_per_image
 
         # Collect raw predictions to allow recovering OBB extra_data after SAHI merges
-        if not hasattr(self, "_all_raw_predictions"):
-            self._all_raw_predictions = []
+        # FORCE CLEAR ON EVERY NEW FORWARD PASS to prevent cross-image contamination
+        self._all_raw_predictions = []
         for pl in object_prediction_list_per_image:
             self._all_raw_predictions.extend(pl)
 
