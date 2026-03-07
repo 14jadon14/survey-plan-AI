@@ -126,6 +126,17 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                                 [float(bl[0]), float(bl[1])]
                             ]
                             
+                            # CRITICAL FIX: SAHI naively extracts `prediction[:4]` for bbox. 
+                            # But YOLO OBB format is `[cx, cy, w, h]`. This causes SAHI to treat
+                            # `cx` as `xmin` and `w` as `xmax`, resulting in wildly corrupted boxes
+                            # (usually xmin > xmax). We MUST manually calculate the true AABB from 
+                            # our corners and overwrite SAHI's corrupted `bbox` variable.
+                            min_x = min(p[0] for p in corners)
+                            max_x = max(p[0] for p in corners)
+                            min_y = min(p[1] for p in corners)
+                            max_y = max(p[1] for p in corners)
+                            bbox = [min_x, min_y, max_x, max_y]
+                            
                             # DEBUG: print raw corner data
                             print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl}")
                             
@@ -154,8 +165,10 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
         self._object_prediction_list_per_image = object_prediction_list_per_image
 
         # Collect raw predictions to allow recovering OBB extra_data after SAHI merges
-        # FORCE CLEAR ON EVERY NEW FORWARD PASS to prevent cross-image contamination
-        self._all_raw_predictions = []
+        # FORCE ACCUMULATE ON EVERY SLICE PASS so we don't drop metadata from previous slices
+        if not hasattr(self, '_all_raw_predictions'):
+            self._all_raw_predictions = []
+            
         for pl in object_prediction_list_per_image:
             self._all_raw_predictions.extend(pl)
 
