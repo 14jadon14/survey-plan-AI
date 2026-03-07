@@ -119,11 +119,14 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             bl = pts[np.argmax(diff)]
                             
                             # Export the exact 4 corners for the 4-point perspective crop bypassing SAHI AABBs
+                            # Add shift_amount to make coordinates relative to the full original image
+                            shift_x = shift_amount[0]
+                            shift_y = shift_amount[1]
                             corners = [
-                                [float(tl[0]), float(tl[1])],
-                                [float(tr[0]), float(tr[1])],
-                                [float(br[0]), float(br[1])],
-                                [float(bl[0]), float(bl[1])]
+                                [float(tl[0] + shift_x), float(tl[1] + shift_y)],
+                                [float(tr[0] + shift_x), float(tr[1] + shift_y)],
+                                [float(br[0] + shift_x), float(br[1] + shift_y)],
+                                [float(bl[0] + shift_x), float(bl[1] + shift_y)]
                             ]
                             
                             # CRITICAL FIX: SAHI naively extracts `prediction[:4]` for bbox. 
@@ -235,6 +238,10 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             # We must wipe the previous image's cached predictions from the model instance
             # to prevent cross-image contamination during the merge phase.
             detection_model._object_prediction_list_per_image = []
+            
+            # CLEAR RAW PREDICTIONS STATE LEAKAGE
+            # Prevent metadata from previous plans from corrupting the current plan.
+            detection_model._all_raw_predictions = []
 
             result = get_sliced_prediction(
                 image_path,
