@@ -89,18 +89,22 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
                             
                         # Basic check
                         if not os.path.exists(img_p):
-                            # Handle specific mismatch: JSON has /validation/images but current env might have /images
-                            if "/content/data/validation/images" in img_p:
-                                new_p = img_p.replace("/content/data/validation/images", "/content/data/images")
-                                if os.path.exists(new_p):
-                                    print(f"[WARN] Image not found at {img_p}. Found at {new_p}. Using that.")
-                                    img_p = new_p
-                                else:
-                                    # Try just removing 'validation/' component if it exists elsewhere
-                                    new_p_2 = img_p.replace("/validation/", "/")
-                                    if os.path.exists(new_p_2):
-                                         print(f"[WARN] Image not found at {img_p}. Found at {new_p_2}. Using that.")
-                                         img_p = new_p_2
+                            # Try common fallback paths for Colab environment mismatches
+                            filename = os.path.basename(img_p)
+                            fallbacks = [
+                                img_p.replace("/content/data/validation/images", "/content/data/images"),
+                                img_p.replace("/content/custom_data/images", "/content/data/images"),
+                                img_p.replace("/content/custom_data/validation/images", "/content/data/images"),
+                                img_p.replace("/validation/", "/"),
+                                f"/content/data/images/{filename}",
+                                f"/content/custom_data/images/{filename}"
+                            ]
+                            
+                            for fb in fallbacks:
+                                if os.path.exists(fb):
+                                    print(f"[WARN] Image not found at {img_p}. Found at {fb}. Using that.")
+                                    img_p = fb
+                                    break
                             
                         if not os.path.exists(img_p):
                             print(f"[ERROR] Image not found at {img_p}")
