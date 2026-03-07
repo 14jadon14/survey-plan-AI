@@ -128,6 +128,20 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             rect_w = math.hypot(br[0] - bl[0], br[1] - bl[1])
                             rect_h = math.hypot(tl[0] - bl[0], tl[1] - bl[1])
                             
+                            # FORCE HORIZONTAL: Donut needs text to be wider than it is tall.
+                            # If the crop is taller than it is wide (like a vertical distance label),
+                            # it means our "bottom edge" was actually the short side.
+                            # We must rotate it by 90 degrees to make it horizontal, and swap w/h.
+                            if rect_h > rect_w * 1.2:  # Add a small 20% margin to prevent flipping squares
+                                # If tilted right (positive angle), rotate left (-90).
+                                # If tilted left (negative angle), rotate right (+90).
+                                if angle_deg > 0:
+                                    angle_deg -= 90
+                                else:
+                                    angle_deg += 90
+                                    
+                                rect_w, rect_h = rect_h, rect_w
+                            
                             # DEBUG: print raw corner data and computed angle
                             print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl} | angle={angle_deg:.2f} | w={rect_w:.1f} h={rect_h:.1f}")
                             
