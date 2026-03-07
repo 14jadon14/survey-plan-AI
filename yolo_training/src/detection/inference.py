@@ -129,16 +129,21 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             elif angle_deg < -90:
                                 angle_deg += 180
                                 
-                            # If the longest edge is nearly vertical (e.g. angle > 45 or < -45),
-                            # the object is just a tall, unrotated text box rather than sideways text.
-                            # We swap width and height to return it to a tall, unrotated box.
-                            if abs(angle_deg) > 45:
-                                rect_w, rect_h = rect_h, rect_w
-                                if angle_deg > 0:
-                                    angle_deg -= 90
-                                else:
-                                    angle_deg += 90
+                            # If the detected object is a Multi-Line text block (like a notes paragraph),
+                            # it naturally forms an upright, tall bounding box. If the longest edge is vertical
+                            # (e.g. angle > 45 or < -45), we swap width and height to return it to a tall, 
+                            # unrotated box instead of a sideways rotated one.
+                            # Single-line strings (like 'adj lot' or 'azimuth') bypass this to be fully flattened.
+                            multi_line_classes = getattr(config, 'MULTI_LINE_TEXT_CLASSES', []) if config else []
                             
+                            if category_name in multi_line_classes:
+                                if abs(angle_deg) > 45:
+                                    rect_w, rect_h = rect_h, rect_w
+                                    if angle_deg > 0:
+                                        angle_deg -= 90
+                                    else:
+                                        angle_deg += 90
+                                        
                             # Exclude rotation for objects that naturally fall close to 0 (e.g. within 3 degrees)
                             if abs(angle_deg) < 3.0:
                                 angle_deg = 0.0

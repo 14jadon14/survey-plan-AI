@@ -102,3 +102,9 @@ EXCLUDED_FROM_TEXT = ["smf", "sms", "sqib", "ip", "ribf", "scale bar", "north ar
 # Dynamically derive text labels but subtract the excluded ones
 TEXT_LABELS = [label for label in LABEL_MAP.keys() if label not in EXCLUDED_FROM_TEXT]
 
+# Multi-line text classes that are naturally "tall" upright text boxes.
+# Bounding box angle constraints (< 45 degrees) will exclusively be applied
+# to these classes to prevent them from unintentionally rotating by 90 degrees.
+# Single-line strings (like 'azimuth' or 'adj lot') require full sideways rotation.
+MULTI_LINE_TEXT_CLASSES = ["notes", "coord table", "plan title", "legend", "text"]
+
