@@ -271,14 +271,15 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                     return interArea / float(boxAArea + boxBArea - interArea)
 
                 for merged_pred in result.object_prediction_list:
-                    # Find highest IoU raw prediction with same category
+                    # Find highest IoU raw prediction REGARDLESS of category. 
+                    # SAHI's class-agnostic NMM merges classes and assumes the label of the highest score,
+                    # potentially discarding the original class. The pure geometry should correspond 
+                    # to whichever raw box overlapped this area the most perfectly.
                     best_iou = 0.0
                     best_raw = None
                     m_box = merged_pred.bbox.to_xyxy()
-                    m_cat_id = merged_pred.category.id
                     
                     for raw_pred in detection_model._all_raw_predictions:
-                        if raw_pred.category.id != m_cat_id: continue
                         iou = calculate_iou(m_box, raw_pred.bbox.to_xyxy())
                         if iou > best_iou:
                             best_iou = iou
