@@ -352,6 +352,7 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             try:
                 with open(json_path, 'w') as f:
                     json.dump(json_results, f, indent=2)
+                print(f"  [DEBUG] Saved incremental JSON with {len(json_results)} items to {json_path}")
             except Exception as e:
                  print(f"[ERROR] Failed to save incremental JSON to {json_path}: {e}")
         # -----------------------------
