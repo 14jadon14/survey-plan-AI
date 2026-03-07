@@ -1,5 +1,6 @@
 
 import torch
+import math
 import re
 import cv2
 import numpy as np
@@ -56,51 +57,48 @@ class DocumentParser:
                     rect_w = rect_ws[i] if rect_ws and i < len(rect_ws) and rect_ws[i] else 0
                     rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) and rect_hs[i] else 0
                     
-                    if angle and angle != 0 and rect_w and rect_h:
-                        # Deskew using a four-point warp transform (warpPerspective)
-                        # This extracts exactly the OBB region without adjacent noise
+                    if rect_w and rect_h:
+                        # Deskew using a four-point warp transform based on exact angle and dimensions
+                        # This extracts exactly the OBB region and orientates it perfectly horizontally
                         img_arr = np.array(image)
                         xmin, ymin, xmax, ymax = bbox
                         cx = (xmin + xmax) / 2.0
                         cy = (ymin + ymax) / 2.0
                         
-                        # Get 4 corners of the rotated bounding box
-                        box = cv2.boxPoints(((cx, cy), (rect_w, rect_h), angle))
-                        src_pts = np.array(box, dtype="float32")
+                        # 1. Define the 4 corners of an unrotated box centered at origin
+                        hw = rect_w / 2.0
+                        hh = rect_h / 2.0
+                        # Order: top-left, top-right, bottom-right, bottom-left
+                        base_corners = np.array([
+                            [-hw, -hh],
+                            [ hw, -hh],
+                            [ hw,  hh],
+                            [-hw,  hh]
+                        ], dtype="float32")
                         
-                        # Helper to order points: top-left, top-right, bottom-right, bottom-left
-                        s = src_pts.sum(axis=1)
-                        diff = np.diff(src_pts, axis=1) # y - x
+                        # 2. Rotate by the geometric angle
+                        angle_rad = math.radians(angle)
+                        cos_a = math.cos(angle_rad)
+                        sin_a = math.sin(angle_rad)
+                        R = np.array([
+                            [cos_a, -sin_a],
+                            [sin_a,  cos_a]
+                        ], dtype="float32")
                         
-                        rect_pts = np.zeros((4, 2), dtype="float32")
-                        rect_pts[0] = src_pts[np.argmin(s)]     # top-left
-                        rect_pts[2] = src_pts[np.argmax(s)]     # bottom-right
-                        rect_pts[1] = src_pts[np.argmin(diff)]  # top-right
-                        rect_pts[3] = src_pts[np.argmax(diff)]  # bottom-left
+                        # 3. Apply rotation and translate to the true center point
+                        src_pts = np.dot(base_corners, R.T) + np.array([cx, cy], dtype="float32")
                         
-                        # Compute width and height of the tight crop
-                        wA = np.linalg.norm(rect_pts[2] - rect_pts[3]) # bottom-right to bottom-left
-                        wB = np.linalg.norm(rect_pts[1] - rect_pts[0]) # top-right to top-left
-                        max_w = max(int(wA), int(wB))
-
-                        hA = np.linalg.norm(rect_pts[1] - rect_pts[2]) # top-right to bottom-right
-                        hB = np.linalg.norm(rect_pts[0] - rect_pts[3]) # top-left to bottom-left
-                        max_h = max(int(hA), int(hB))
-
-                        # Ensure text is horizontal (width > height usually for text boxes)
-                        if max_h > max_w:
-                            # rotate text orientation 90 degrees to make it horizontal
-                            rect_pts = np.array([rect_pts[3], rect_pts[0], rect_pts[1], rect_pts[2]], dtype="float32")
-                            max_w, max_h = max_h, max_w
-
+                        # 4. Define the destination points for the perfect horizontal crop
                         dst_pts = np.array([
                             [0, 0],
-                            [max_w - 1, 0],
-                            [max_w - 1, max_h - 1],
-                            [0, max_h - 1]], dtype="float32")
-                            
-                        M_warp = cv2.getPerspectiveTransform(rect_pts, dst_pts)
-                        warped = cv2.warpPerspective(img_arr, M_warp, (max_w, max_h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0))
+                            [rect_w - 1, 0],
+                            [rect_w - 1, rect_h - 1],
+                            [0, rect_h - 1]
+                        ], dtype="float32")
+                        
+                        # Perform warp
+                        M_warp = cv2.getPerspectiveTransform(src_pts.astype("float32"), dst_pts)
+                        warped = cv2.warpPerspective(img_arr, M_warp, (int(rect_w), int(rect_h)), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0))
                         
                         if warped.size > 0:
                             crop = Image.fromarray(warped)

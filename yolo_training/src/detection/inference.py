@@ -102,15 +102,50 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                         obb_points = masks_or_points[pred_ind]  # (4, 2)
                         segmentation = [obb_points.reshape(-1).tolist()]
 
-                        # Derive angle and rotated dimensions from corner points
+                        # Derive pure geometry angle and dimensions from ordered OBB corner points.
                         try:
-                            pts = obb_points.reshape((4, 1, 2)).astype(np.float32)
-                            rect = cv2.minAreaRect(pts)  # ((cx,cy), (w,h), angle_deg)
-                            angle = rect[2]   # degrees, OpenCV convention
-                            rw, rh = rect[1][0], rect[1][1]
-                            extra_data = {"angle": float(angle), "rect_w": float(rw), "rect_h": float(rh)}
+                            p0, p1, p2, p3 = obb_points
+                            
+                            # Calculate adjacent edge lengths
+                            edge1_len = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+                            edge2_len = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+                            
+                            # Assume the longer edge is the width (text is typically wider than tall)
+                            if edge1_len >= edge2_len:
+                                rect_w, rect_h = edge1_len, edge2_len
+                                dx = p1[0] - p0[0]
+                                dy = p1[1] - p0[1]
+                            else:
+                                rect_w, rect_h = edge2_len, edge1_len
+                                dx = p2[0] - p1[0]
+                                dy = p2[1] - p1[1]
+                                
+                            # Calculate true baseline angle (-180 to 180 degrees)
+                            angle_deg = math.degrees(math.atan2(dy, dx))
+                            
+                            # Normalize angle to [-90, 90) internally
+                            if angle_deg >= 90:
+                                angle_deg -= 180
+                            elif angle_deg < -90:
+                                angle_deg += 180
+                                
+                            # If the longest edge is nearly vertical (e.g. angle > 45 or < -45),
+                            # the object is just a tall, unrotated text box rather than sideways text.
+                            # We swap width and height to return it to a tall, unrotated box.
+                            if abs(angle_deg) > 45:
+                                rect_w, rect_h = rect_h, rect_w
+                                if angle_deg > 0:
+                                    angle_deg -= 90
+                                else:
+                                    angle_deg += 90
+                            
+                            # Exclude rotation for objects that naturally fall close to 0 (e.g. within 3 degrees)
+                            if abs(angle_deg) < 3.0:
+                                angle_deg = 0.0
+                                
+                            extra_data = {"angle": float(angle_deg), "rect_w": float(rect_w), "rect_h": float(rect_h)}
                         except Exception as e:
-                            print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute minAreaRect: {e}")
+                            print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute OBB geometry: {e}")
 
                     if segmentation is not None and len(segmentation) == 0:
                         continue
