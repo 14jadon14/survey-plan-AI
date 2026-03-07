@@ -9,32 +9,22 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline import DocumentParser
 
-def display_crop(image, bbox=None, label=None, angle=0, rect_w=0, rect_h=0):
+def display_crop(crop_img, bbox=None, label=None, angle=0):
     """
-    Display an image or bounding box crop inline (Colab/Jupyter) before printing text.
+    Display the finalized crop output from the pipeline inline (Colab/Jupyter) before printing text.
     Falls back to a print notice if not in a notebook.
     """
     try:
         from IPython.display import display as ipy_display
         import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-        from PIL import Image as PILImage
-
-        if isinstance(image, str):
-            img = PILImage.open(image).convert("RGB")
-        else:
-            img = image.copy()
+        
+        # If no crop was generated, skip
+        if crop_img is None:
+            return
 
         fig, ax = plt.subplots(1, figsize=(6, 4))
-        if bbox:
-            crop = img.crop(bbox)
-            if angle and angle != 0:
-                crop = crop.rotate(-angle, expand=True, fillcolor="black")
-            ax.imshow(crop)
-            title = f"Crop {bbox}{' (rot: ' + str(round(angle, 1)) + ')' if angle else ''}"
-        else:
-            ax.imshow(img)
-            title = "Full image"
+        ax.imshow(crop_img)
+        title = f"Crop {bbox}{' (rot: ' + str(round(angle, 1)) + ')' if angle else ''}"
 
         if label:
             title += f"  |  label: {label}"
@@ -126,11 +116,13 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
                             results = parser.process_image(
                                 img_p, 
                                 bboxes=[bbox] if bbox else None, 
-                                angles=[angle] if bbox else None
+                                angles=[angle] if bbox else None,
+                                rect_ws=[rect_w] if bbox else None,
+                                rect_hs=[rect_h] if bbox else None
                             )
                             for res in results:
-                                 # Show the crop before printing text
-                                 display_crop(img_p, bbox=res.get("bbox"), label=label, angle=angle, rect_w=rect_w, rect_h=rect_h)
+                                 # Show the processed crop before printing text
+                                 display_crop(res.get("crop"), bbox=res.get("bbox"), label=label, angle=angle)
                                  raw_text = res.get('parsed_content', '')
                                  clean_text = clean_cord_output(raw_text)
                                  print(f"  Parsed (Cleaned): '{clean_text}'")

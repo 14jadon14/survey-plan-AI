@@ -21,7 +21,7 @@ class DocumentParser:
         self.model.eval()
         print("Model loaded successfully.")
 
-    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, **kwargs) -> List[Dict[str, Any]]:
+    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, rect_ws: List[float] = None, rect_hs: List[float] = None, **kwargs) -> List[Dict[str, Any]]:
         """
         Process an image (and optional bounding boxes) to extract text using Donut.
 
@@ -29,11 +29,12 @@ class DocumentParser:
             image (str or PIL.Image.Image): Path to image or PIL Image object.
             bboxes (list of lists, optional): List of [xmin, ymin, xmax, ymax] coordinates.
                                               If None, processes the entire image.
-            angles (list of floats, optional): List of rotation angles corresponding to each bbox.
-                                               Used to deskew the crops before processing.
+            angles (list of floats, optional): List of rotation angles.
+            rect_ws (list of floats, optional): List of OBB widths for tight cropping.
+            rect_hs (list of floats, optional): List of OBB heights for tight cropping.
 
         Returns:
-            List of dictionaries containing 'bbox' and 'parsed_content'.
+            List of dictionaries containing 'bbox', 'parsed_content', and 'crop'.
         """
         if isinstance(image, str):
             try:
@@ -46,24 +47,35 @@ class DocumentParser:
         if bboxes:
             for i, bbox in enumerate(bboxes):
                 try:
-                    # 1. Crop using the axis-aligned bounding box
+                    # 1. Crop using the axis-aligned bounding box (AABB)
                     crop = image.crop(bbox)
                     
-                    # 2. Rotate by -angle to bring the text parallel to the x-axis.
-                    #    expand=True ensures the full rotated content is visible (no clipping).
-                    #    fillcolor=white avoids black borders that confuse the model.
+                    # 2. Rotate by +angle (PIL rotate is counter-clockwise, meaning +angle correctly un-tilts a clockwise-tilted box)
                     angle = angles[i] if angles and i < len(angles) else 0
                     if angle and angle != 0:
-                        crop = crop.rotate(-angle, resample=Image.BICUBIC, expand=True, fillcolor=(255, 255, 255))
+                        crop = crop.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(255, 255, 255))
+                        
+                        # 3. Tight center-crop to remove the expanded white padding and isolate the exact OBB
+                        rect_w = rect_ws[i] if rect_ws and i < len(rect_ws) else 0
+                        rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) else 0
+                        if rect_w > 0 and rect_h > 0:
+                            cx = crop.width / 2.0
+                            cy = crop.height / 2.0
+                            left = cx - rect_w / 2.0
+                            top = cy - rect_h / 2.0
+                            right = cx + rect_w / 2.0
+                            bottom = cy + rect_h / 2.0
+                            # Add a tiny 2px margin to ensure we don't slice off text edges
+                            crop = crop.crop((int(left)-2, int(top)-2, int(right)+2, int(bottom)+2))
                     
                     parsed_content = self.parse_crop(crop)
-                    results.append({"bbox": bbox, "parsed_content": parsed_content})
+                    results.append({"bbox": bbox, "parsed_content": parsed_content, "crop": crop.copy()})
                 except Exception as e:
                     print(f"Error processing bbox {bbox}: {e}")
-                    results.append({"bbox": bbox, "error": str(e)})
+                    results.append({"bbox": bbox, "error": str(e), "crop": None})
         else:
             parsed_content = self.parse_crop(image)
-            results.append({"bbox": None, "parsed_content": parsed_content})
+            results.append({"bbox": None, "parsed_content": parsed_content, "crop": image})
             
         return results
 
