@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline import DocumentParser
 
-def display_crop(crop_img, bbox=None, label=None, angle=0):
+def display_crop(crop_img, bbox=None, label=None):
     """
     Display the finalized crop output from the pipeline inline (Colab/Jupyter) before printing text.
     Falls back to a print notice if not in a notebook.
@@ -24,7 +24,7 @@ def display_crop(crop_img, bbox=None, label=None, angle=0):
 
         fig, ax = plt.subplots(1, figsize=(6, 4))
         ax.imshow(crop_img)
-        title = f"Crop {bbox}{' (rot: ' + str(round(angle, 1)) + ')' if angle else ''}"
+        title = f"Crop {bbox}" if bbox else "Crop"
 
         if label:
             title += f"  |  label: {label}"
@@ -55,7 +55,7 @@ def clean_cord_output(text):
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
     return cleaned
 
-def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
+def run_custom(image_path=None, bboxes=None, json_path=None):
     if json_path:
         if not os.path.exists(json_path):
             print(f"Error: JSON file not found at {json_path}")
@@ -112,21 +112,17 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
 
                         print(f"\nProcessing item {i}: {img_p}")
                         try:
-                            # Read angle and explicit rotated box dimensions if present in json
-                            angle = item.get("angle", 0)
-                            rect_w = item.get("rect_w", 0)
-                            rect_h = item.get("rect_h", 0)
+                            # Read the 4 OBB corners if present
+                            corners = item.get("corners", None)
 
                             results = parser.process_image(
                                 img_p, 
                                 bboxes=[bbox] if bbox else None, 
-                                angles=[angle] if bbox else None,
-                                rect_ws=[rect_w] if bbox else None,
-                                rect_hs=[rect_h] if bbox else None
+                                corners_list=[corners] if corners else None
                             )
                             for res in results:
                                  # Show the processed crop before printing text
-                                 display_crop(res.get("crop"), bbox=res.get("bbox"), label=label, angle=angle)
+                                 display_crop(res.get("crop"), bbox=res.get("bbox"), label=label)
                                  raw_text = res.get('parsed_content', '')
                                  clean_text = clean_cord_output(raw_text)
                                  print(f"  Parsed (Cleaned): '{clean_text}'")
@@ -183,7 +179,7 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
     else:
          bbox_list = bboxes
 
-    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None)
+    results = parser.process_image(image_path, bboxes=bbox_list)
     
     for i, res in enumerate(results):
         bbox_str = f" (BBox: {res.get('bbox')})" if res.get('bbox') else ""
@@ -209,7 +205,6 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", help="Path to the image file to process.")
     parser.add_argument("--bbox", nargs=4, type=int, metavar=('xmin', 'ymin', 'xmax', 'ymax'),
                         help="Optional bounding box coordinates (xmin ymin xmax ymax).")
-    parser.add_argument("--angle", type=float, default=0, help="Optional angle of the bounding box.")
     parser.add_argument("--json", help="Path to a JSON file containing processing instructions.")
     
     args = parser.parse_args()
@@ -218,4 +213,4 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
         
-    run_custom(image_path=args.image_path, bboxes=args.bbox, angle=args.angle, json_path=args.json)
+    run_custom(image_path=args.image_path, bboxes=args.bbox, json_path=args.json)

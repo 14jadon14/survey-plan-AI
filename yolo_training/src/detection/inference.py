@@ -118,34 +118,18 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             tr = pts[np.argmin(diff)]
                             bl = pts[np.argmax(diff)]
                             
-                            # Compute angle of the bottom edge (BL → BR) relative to horizontal.
-                            # This tells us how much the box is tilted from the x-axis.
-                            dx = br[0] - bl[0]
-                            dy = br[1] - bl[1]
-                            angle_deg = math.degrees(math.atan2(dy, dx))
+                            # Export the exact 4 corners for the 4-point perspective crop bypassing SAHI AABBs
+                            corners = [
+                                [float(tl[0]), float(tl[1])],
+                                [float(tr[0]), float(tr[1])],
+                                [float(br[0]), float(br[1])],
+                                [float(bl[0]), float(bl[1])]
+                            ]
                             
-                            # Compute width (bottom edge length) and height (left edge length)
-                            rect_w = math.hypot(br[0] - bl[0], br[1] - bl[1])
-                            rect_h = math.hypot(tl[0] - bl[0], tl[1] - bl[1])
+                            # DEBUG: print raw corner data
+                            print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl}")
                             
-                            # FORCE HORIZONTAL: Donut needs text to be wider than it is tall.
-                            # If the crop is taller than it is wide (like a vertical distance label),
-                            # it means our "bottom edge" was actually the short side.
-                            # We must rotate it by 90 degrees to make it horizontal, and swap w/h.
-                            if rect_h > rect_w * 1.2:  # Add a small 20% margin to prevent flipping squares
-                                # If tilted right (positive angle), rotate left (-90).
-                                # If tilted left (negative angle), rotate right (+90).
-                                if angle_deg > 0:
-                                    angle_deg -= 90
-                                else:
-                                    angle_deg += 90
-                                    
-                                rect_w, rect_h = rect_h, rect_w
-                            
-                            # DEBUG: print raw corner data and computed angle
-                            print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl} | angle={angle_deg:.2f} | w={rect_w:.1f} h={rect_h:.1f}")
-                            
-                            extra_data = {"angle": float(angle_deg), "rect_w": float(rect_w), "rect_h": float(rect_h)}
+                            extra_data = {"corners": corners}
                         except Exception as e:
                             print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute OBB geometry: {e}")
 
@@ -317,20 +301,14 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 score = float(prediction.score.value)
 
                 # Read angle/dims populated by OBBUltralyticsDetectionModel.extra_data
-                angle = 0.0
-                rect_w = 0.0
-                rect_h = 0.0
+                corners = None
                 if hasattr(prediction, 'extra_data') and prediction.extra_data:
-                    angle = prediction.extra_data.get('angle', 0.0)
-                    rect_w = prediction.extra_data.get('rect_w', 0.0)
-                    rect_h = prediction.extra_data.get('rect_h', 0.0)
+                    corners = prediction.extra_data.get('corners', None)
                 
                 json_results.append({
                     "image_path": os.path.abspath(image_path),
                     "bbox": bbox,
-                    "angle": angle,
-                    "rect_w": rect_w,
-                    "rect_h": rect_h,
+                    "corners": corners,
                     "label": label,
                     "score": score
                 })

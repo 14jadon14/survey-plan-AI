@@ -21,17 +21,15 @@ class DocumentParser:
         self.model.eval()
         print("Model loaded successfully.")
 
-    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, rect_ws: List[float] = None, rect_hs: List[float] = None, **kwargs) -> List[Dict[str, Any]]:
+    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, corners_list: List[List[List[float]]] = None, **kwargs) -> List[Dict[str, Any]]:
         """
-        Process an image (and optional bounding boxes) to extract text using Donut.
+        Process an image (and optional bounding boxes or corners) to extract text using Donut.
 
         Args:
             image (str or PIL.Image.Image): Path to image or PIL Image object.
             bboxes (list of lists, optional): List of [xmin, ymin, xmax, ymax] coordinates.
-                                              If None, processes the entire image.
-            angles (list of floats, optional): List of rotation angles.
-            rect_ws (list of floats, optional): List of OBB widths for tight cropping.
-            rect_hs (list of floats, optional): List of OBB heights for tight cropping.
+            corners_list (list of lists, optional): List of 4 points [[x,y], [x,y], [x,y], [x,y]] (TL, TR, BR, BL).
+
 
         Returns:
             List of dictionaries containing 'bbox', 'parsed_content', and 'crop'.
@@ -44,35 +42,31 @@ class DocumentParser:
                 return []
         
         results = []
-        if bboxes:
-            for i, bbox in enumerate(bboxes):
+        if bboxes or corners_list:
+            loop_list = corners_list if corners_list else bboxes
+            for i in range(len(loop_list)):
+                bbox = bboxes[i] if bboxes and i < len(bboxes) else None
+                corners = corners_list[i] if corners_list and i < len(corners_list) else None
                 try:
-                    # 1. Crop using the axis-aligned bounding box (AABB)
-                    crop = image.crop(bbox)
-                    
-                    # 2. Rotate by +angle (PIL rotate is counter-clockwise, meaning +angle correctly un-tilts a clockwise-tilted box)
-                    angle = angles[i] if angles and i < len(angles) else 0
-                    if angle and angle != 0:
-                        crop = crop.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(255, 255, 255))
+                    if corners:
+                        import math
+                        tl, tr, br, bl = corners
+                        w = int(math.hypot(tr[0]-tl[0], tr[1]-tl[1]))
+                        h = int(math.hypot(bl[0]-tl[0], bl[1]-tl[1]))
                         
-                        # 3. Tight center-crop to remove the expanded white padding and isolate the exact OBB
-                        rect_w = rect_ws[i] if rect_ws and i < len(rect_ws) else 0
-                        rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) else 0
-                        if rect_w > 0 and rect_h > 0:
-                            cx = crop.width / 2.0
-                            cy = crop.height / 2.0
-                            left = cx - rect_w / 2.0
-                            top = cy - rect_h / 2.0
-                            right = cx + rect_w / 2.0
-                            bottom = cy + rect_h / 2.0
-                            # Add a tiny 2px margin to ensure we don't slice off text edges
-                            crop = crop.crop((int(left)-2, int(top)-2, int(right)+2, int(bottom)+2))
+                        # PIL Image.QUAD takes points in order: TL, BL, BR, TR
+                        quad_data = (tl[0], tl[1], bl[0], bl[1], br[0], br[1], tr[0], tr[1])
+                        crop = image.transform((w, h), Image.QUAD, data=quad_data, resample=Image.BICUBIC)
+                    elif bbox:
+                        crop = image.crop(bbox)
+                    else:
+                        continue
                     
                     parsed_content = self.parse_crop(crop)
-                    results.append({"bbox": bbox, "parsed_content": parsed_content, "crop": crop.copy()})
+                    results.append({"bbox": bbox, "corners": corners, "parsed_content": parsed_content, "crop": crop.copy()})
                 except Exception as e:
-                    print(f"Error processing bbox {bbox}: {e}")
-                    results.append({"bbox": bbox, "error": str(e), "crop": None})
+                    print(f"Error processing item at index {i}: {e}")
+                    results.append({"bbox": bbox, "corners": corners, "error": str(e), "crop": None})
         else:
             parsed_content = self.parse_crop(image)
             results.append({"bbox": None, "parsed_content": parsed_content, "crop": image})
