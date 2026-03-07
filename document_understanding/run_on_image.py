@@ -126,9 +126,7 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
                             results = parser.process_image(
                                 img_p, 
                                 bboxes=[bbox] if bbox else None, 
-                                angles=[angle] if bbox else None,
-                                rect_ws=[rect_w] if bbox else None,
-                                rect_hs=[rect_h] if bbox else None
+                                angles=[angle] if bbox else None
                             )
                             for res in results:
                                  # Show the crop before printing text
@@ -189,7 +187,7 @@ def run_custom(image_path=None, bboxes=None, angle=0, json_path=None):
     else:
          bbox_list = bboxes
 
-    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None, rect_ws=[0] if bbox_list else None, rect_hs=[0] if bbox_list else None)
+    results = parser.process_image(image_path, bboxes=bbox_list, angles=[angle] if bbox_list else None)
     
     for i, res in enumerate(results):
         bbox_str = f" (BBox: {res.get('bbox')})" if res.get('bbox') else ""

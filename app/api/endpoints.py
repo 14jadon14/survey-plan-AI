@@ -91,14 +91,10 @@ async def upload_plan(file: UploadFile = File(...)):
         # 3. Parse with Donut
         bboxes = []
         angles = []
-        rect_ws = []
-        rect_hs = []
         
         for det in detections:
             bboxes.append(det.get("bbox"))
             angles.append(det.get("angle", 0))
-            rect_ws.append(det.get("rect_w", 0))
-            rect_hs.append(det.get("rect_h", 0))
 
         donut_parser = get_parser()
         if donut_parser and bboxes:
@@ -106,9 +102,7 @@ async def upload_plan(file: UploadFile = File(...)):
              parsed_results = donut_parser.process_image(
                  image=temp_file_path,
                  bboxes=bboxes,
-                 angles=angles,
-                 rect_ws=rect_ws,
-                 rect_hs=rect_hs
+                 angles=angles
              )
              
              # Merge results back together

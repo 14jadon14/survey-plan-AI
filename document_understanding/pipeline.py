@@ -1,9 +1,6 @@
 
 import torch
-import math
 import re
-import cv2
-import numpy as np
 from PIL import Image
 from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
@@ -24,7 +21,7 @@ class DocumentParser:
         self.model.eval()
         print("Model loaded successfully.")
 
-    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, rect_ws: List[float] = None, rect_hs: List[float] = None) -> List[Dict[str, Any]]:
+    def process_image(self, image: Union[str, Image.Image], bboxes: List[List[int]] = None, angles: List[float] = None, **kwargs) -> List[Dict[str, Any]]:
         """
         Process an image (and optional bounding boxes) to extract text using Donut.
 
@@ -48,64 +45,16 @@ class DocumentParser:
         results = []
         if bboxes:
             for i, bbox in enumerate(bboxes):
-                # Ensure bbox format is correct and within image bounds
                 try:
-                    # Determine angle for this bbox
-                    angle = angles[i] if angles and i < len(angles) and angles[i] else 0
+                    # 1. Crop using the axis-aligned bounding box
+                    crop = image.crop(bbox)
                     
-                    # Basic validation                    # Determine explicit dimensions if available
-                    rect_w = rect_ws[i] if rect_ws and i < len(rect_ws) and rect_ws[i] else 0
-                    rect_h = rect_hs[i] if rect_hs and i < len(rect_hs) and rect_hs[i] else 0
-                    
-                    if rect_w and rect_h:
-                        # Deskew using a four-point warp transform based on exact angle and dimensions
-                        # This extracts exactly the OBB region and orientates it perfectly horizontally
-                        img_arr = np.array(image)
-                        xmin, ymin, xmax, ymax = bbox
-                        cx = (xmin + xmax) / 2.0
-                        cy = (ymin + ymax) / 2.0
-                        
-                        # 1. Define the 4 corners of an unrotated box centered at origin
-                        hw = rect_w / 2.0
-                        hh = rect_h / 2.0
-                        # Order: top-left, top-right, bottom-right, bottom-left
-                        base_corners = np.array([
-                            [-hw, -hh],
-                            [ hw, -hh],
-                            [ hw,  hh],
-                            [-hw,  hh]
-                        ], dtype="float32")
-                        
-                        # 2. Rotate by the geometric angle
-                        angle_rad = math.radians(angle)
-                        cos_a = math.cos(angle_rad)
-                        sin_a = math.sin(angle_rad)
-                        R = np.array([
-                            [cos_a, -sin_a],
-                            [sin_a,  cos_a]
-                        ], dtype="float32")
-                        
-                        # 3. Apply rotation and translate to the true center point
-                        src_pts = np.dot(base_corners, R.T) + np.array([cx, cy], dtype="float32")
-                        
-                        # 4. Define the destination points for the perfect horizontal crop
-                        dst_pts = np.array([
-                            [0, 0],
-                            [rect_w - 1, 0],
-                            [rect_w - 1, rect_h - 1],
-                            [0, rect_h - 1]
-                        ], dtype="float32")
-                        
-                        # Perform warp
-                        M_warp = cv2.getPerspectiveTransform(src_pts.astype("float32"), dst_pts)
-                        warped = cv2.warpPerspective(img_arr, M_warp, (int(rect_w), int(rect_h)), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0))
-                        
-                        if warped.size > 0:
-                            crop = Image.fromarray(warped)
-                        else:
-                            crop = image.crop(bbox) # fallback if empty
-                    else:
-                        crop = image.crop(bbox)
+                    # 2. Rotate by -angle to bring the text parallel to the x-axis.
+                    #    expand=True ensures the full rotated content is visible (no clipping).
+                    #    fillcolor=white avoids black borders that confuse the model.
+                    angle = angles[i] if angles and i < len(angles) else 0
+                    if angle and angle != 0:
+                        crop = crop.rotate(-angle, resample=Image.BICUBIC, expand=True, fillcolor=(255, 255, 255))
                     
                     parsed_content = self.parse_crop(crop)
                     results.append({"bbox": bbox, "parsed_content": parsed_content})
