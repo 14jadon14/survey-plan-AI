@@ -128,9 +128,6 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             max_y = max(0.0, float(max(p[1] for p in box)))
                             bbox = [min_x, min_y, max_x, max_y]
                             
-                            # DEBUG: print raw corner data
-                            print(f"  [DEBUG OBB] cat={category_name} | TL={tl} TR={tr} BR={br} BL={bl}")
-                            
                             extra_data = {"corners": corners}
                         except Exception as e:
                             print(f"[WARN] OBBUltralyticsDetectionModel: failed to compute OBB geometry: {e}")
@@ -154,14 +151,7 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
             object_prediction_list_per_image.append(object_prediction_list)
 
         self._object_prediction_list_per_image = object_prediction_list_per_image
-
-        # Collect raw predictions to allow recovering OBB extra_data after SAHI merges
-        # FORCE ACCUMULATE ON EVERY SLICE PASS so we don't drop metadata from previous slices
-        if not hasattr(self, '_all_raw_predictions'):
-            self._all_raw_predictions = []
-            
-        for pl in object_prediction_list_per_image:
-            self._all_raw_predictions.extend(pl)
+        return object_prediction_list_per_image
 
 def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=None, conf_thres=None, json_output=None):
     """
@@ -254,43 +244,12 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 export_dir=export_path,
                 file_name=image_name.replace(os.path.splitext(image_name)[1], '')
             )
-            
-            # Post-process the merged results to recover missing OBB extra_data
-            # SAHI NMM merges (averages) bounding boxes and creates a new ObjectPrediction,
-            # discarding the extra_data. We re-attach it using IoU mapping.
-            if hasattr(detection_model, '_all_raw_predictions') and detection_model._all_raw_predictions:
-                def calculate_iou(boxA, boxB):
-                    xA = max(boxA[0], boxB[0])
-                    yA = max(boxA[1], boxB[1])
-                    xB = min(boxA[2], boxB[2])
-                    yB = min(boxA[3], boxB[3])
-                    interArea = max(0, xB - xA) * max(0, yB - yA)
-                    if interArea == 0: return 0.0
-                    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
-                    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
-                    return interArea / float(boxAArea + boxBArea - interArea)
-
-                for merged_pred in result.object_prediction_list:
-                    # Find highest IoU raw prediction REGARDLESS of category. 
-                    # SAHI's class-agnostic NMM merges classes and assumes the label of the highest score,
-                    # potentially discarding the original class. The pure geometry should correspond 
-                    # to whichever raw box overlapped this area the most perfectly.
-                    best_iou = 0.0
-                    best_raw = None
-                    m_box = merged_pred.bbox.to_xyxy()
-                    
-                    for raw_pred in detection_model._all_raw_predictions:
-                        iou = calculate_iou(m_box, raw_pred.bbox.to_xyxy())
-                        if iou > best_iou:
-                            best_iou = iou
-                            best_raw = raw_pred
-                            
-                    if best_raw and hasattr(best_raw, 'extra_data') and best_raw.extra_data:
-                        merged_pred.extra_data = dict(best_raw.extra_data)
-
-                # Clear raw predictions for the next image
+            # Remove raw OBB Extra Data recovery logic per user request. 
+            # We now rely exclusively on the averaged SAHI bboxes.
+            if hasattr(detection_model, '_all_raw_predictions'):
                 detection_model._all_raw_predictions = []
             
+
             # Collect results for JSON output.
             # Always gather results — saving to disk is gated separately below.
             # This ensures the API path (Scenario 3) gets angle data even when
