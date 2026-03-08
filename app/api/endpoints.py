@@ -4,6 +4,7 @@ import json
 import uuid
 import tempfile
 import pandas as pd
+from typing import List, Dict
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from pydantic import BaseModel
 import ezdxf
@@ -12,6 +13,8 @@ import ezdxf
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
+
+from app.services.cad_validator import CADValidator
 
 # Import module paths
 try:
@@ -139,42 +142,209 @@ async def upload_cad(file: UploadFile = File(...)):
         with open(temp_file_path, "wb") as buffer:
             buffer.write(await file.read())
             
-        # Parse logic
-        doc = ezdxf.readfile(temp_file_path)
-        layers = [layer.dxf.name for layer in doc.layers]
-        
-        mandatory_layers = ["PLACEHOLDER_LAYER_1", "PLACEHOLDER_LAYER_2"]
-        missing_layers = [layer for layer in mandatory_layers if layer not in layers]
+        print(f"[INFO] CAD file saved to {temp_file_path}. Initializing validator...")
+        validator = CADValidator(temp_file_path)
+        print(f"[INFO] Running validation sequence...")
+        # standalone validation (without CSV corners)
+        validation_results = validator.validate_all()
+        print(f"[INFO] CAD Validation complete. Valid: {validation_results['valid']}")
         
         return {
-            "valid": len(missing_layers) == 0,
-            "layers_found": layers,
-            "missing_layers": missing_layers,
-            "message": "CAD file parsed successfully."
+            "valid": validation_results["valid"],
+            "file_path": temp_file_path, # Return path so frontend can use it for cross-verify if needed
+            "validation": validation_results,
+            "message": "CAD file validated successfully."
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to parse CAD file: {e}")
 
-@router.post("/upload/csv")
-async def upload_csv(file: UploadFile = File(...)):
+class CrossVerifyInput(BaseModel):
+    cad_file_path: str
+    csv_corners: List[Dict]
+
+@router.post("/verify-cad-csv")
+async def verify_cad_csv(data: CrossVerifyInput):
     """
-    Parses CSV for coordinate extraction.
+    Cross-references CAD vertices with previously uploaded CSV corners.
     """
-    if not file.filename.lower().endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Invalid file type. Must be CSV.")
+    if not os.path.exists(data.cad_file_path):
+        raise HTTPException(status_code=404, detail="CAD file not found on server.")
         
     try:
-        df = pd.read_csv(file.file)
-        
-        # Determine coordinate columns heuristically or strictly based on common names
-        # Just returning the whole parsed records for now for flexibility
-        records = df.to_dict(orient="records")
-        return {
-            "message": "CSV parsed successfully.",
-            "data": records
-        }
+        validator = CADValidator(data.cad_file_path)
+        results = validator.verify_corners(data.csv_corners)
+        return results
     except Exception as e:
-         raise HTTPException(status_code=500, detail=f"Failed to parse CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Cross-verification failed: {e}")
+
+@router.post("/upload/csv")
+async def upload_csv(file: UploadFile = File(...), corners: str = Form(None)):
+    """
+    Parses ASCII coordinate files (PNEZD format).
+    Supports .csv, .txt, .asc, .xyz, .pts
+    Handles comma or whitespace delimiters.
+    """
+    print("[INFO] PNEZD Upload Endpoint Active (Serialization Fix v4)")
+    import math
+    
+    # Helper to ensure standard Python types for JSON recursively
+    def force_native(obj):
+        if isinstance(obj, dict):
+            return {str(k): force_native(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [force_native(x) for x in obj]
+        if pd.isna(obj):
+            return None
+        # Handle numpy scalars
+        if hasattr(obj, 'item') and not isinstance(obj, (list, dict)):
+            obj = obj.item()
+        
+        if isinstance(obj, float):
+            if not math.isfinite(obj):
+                return None
+            return float(obj)
+        if isinstance(obj, (int, bool)):
+            return obj
+        if obj is None:
+            return None
+        return str(obj)
+
+    ext = file.filename.lower().split('.')[-1]
+    
+    if ext not in ['csv', 'txt', 'asc', 'xyz', 'pts']:
+        raise HTTPException(status_code=400, detail=f"Invalid file type: {ext}. Must be CSV or ASCII (txt, asc, xyz, pts).")
+        
+    try:
+        content = await file.read()
+        # Decode content
+        try:
+            text = content.decode('utf-8')
+        except UnicodeDecodeError:
+            text = content.decode('latin-1')
+            
+        lines = text.strip().split('\n')
+        if not lines:
+            raise ValueError("File is empty.")
+
+        # Heuristic delimiter detection
+        first_line = lines[0]
+        if ',' in first_line:
+            sep = ','
+        elif '\t' in first_line:
+            sep = '\t'
+        else:
+            sep = None # Whitespace (default for read_table/read_csv)
+
+        # Read into dataframe
+        from io import StringIO
+        
+        # Robust header detection: 
+        # Only treat as header if the second and third columns are NOT numeric in the first line, 
+        # but ARE numeric in the second line (if it exists).
+        first_line_parts = [p.strip().strip('"').strip("'") for p in (first_line.split(sep) if sep else first_line.split())]
+        
+        def is_numeric(s):
+            try:
+                float(s)
+                return True
+            except (ValueError, TypeError):
+                return False
+
+        # PNEZD typically has Northing and Easting in indices 1 and 2
+        # Check if indices 1 or 2 in first line are numeric
+        line1_coords_numeric = any(is_numeric(first_line_parts[i]) for i in range(1, min(len(first_line_parts), 4)))
+        
+        # If the first line's coordinate area is numeric, it's NOT a header.
+        is_header = not line1_coords_numeric and len(lines) > 1
+        
+        df = pd.read_csv(StringIO(text), sep=sep, engine='python', header=0 if is_header else None)
+        
+        # Normalize columns to PNEZD
+        mapping = {}
+        cols = [str(c).lower() for c in df.columns]
+        
+        # 1. Map Point ID (Point, ID, Name, Number)
+        # Priority: Exact match, then contains
+        for i, c in enumerate(cols):
+            if any(k == c for k in ['p', 'pt', 'id', 'name', 'number', 'point']): mapping['point'] = i; break
+        if 'point' not in mapping:
+            for i, c in enumerate(cols):
+                if any(k in c for k in ['point', 'pt', 'id', 'name', 'num']) and not any(k in c for k in ['north', 'east', 'elev']):
+                    mapping['point'] = i; break
+
+        # 2. Map Northing/Y (Priority: Exact match, then contains 'north' or 'n')
+        # We need to be careful not to match 'note' or 'name' here.
+        for i, c in enumerate(cols):
+            if i in mapping.values(): continue
+            if any(k == c for k in ['n', 'y', 'northing', 'north']): mapping['y'] = i; break
+        if 'y' not in mapping:
+             for i, c in enumerate(cols):
+                if i in mapping.values(): continue
+                # Match 'northing' or 'north' but avoid 'name'
+                if ('north' in c or 'nort' in c) and 'name' not in c:
+                    mapping['y'] = i; break
+        
+        # 3. Map Easting/X (Priority: Exact match, then contains 'east' or 'e')
+        for i, c in enumerate(cols):
+            if i in mapping.values(): continue
+            if any(k == c for k in ['e', 'x', 'easting', 'east']): mapping['x'] = i; break
+        if 'x' not in mapping:
+            for i, c in enumerate(cols):
+                if i in mapping.values(): continue
+                # Match 'easting' or 'east' but avoid 'elev'
+                if ('east' in c or 'east' in c) and 'elev' not in c:
+                    mapping['x'] = i; break
+            
+        # 4. Map Elevation/Z
+        for i, c in enumerate(cols):
+            if i in mapping.values(): continue
+            if any(k == c for k in ['z', 'elev', 'height', 'elevation']): mapping['z'] = i; break
+
+        # 5. Map Description
+        for i, c in enumerate(cols):
+            if i in mapping.values(): continue
+            if any(k in c for k in ['desc', 'code', 'note', 'remark', 'info']): mapping['desc'] = i; break
+
+        # Fallback to positional mapping for PNEZD if heuristic failed
+        if 'point' not in mapping and df.shape[1] >= 1: mapping['point'] = 0
+        if 'y' not in mapping and df.shape[1] >= 2: mapping['y'] = 1
+        if 'x' not in mapping and df.shape[1] >= 3: mapping['x'] = 2
+        if 'z' not in mapping and df.shape[1] >= 4: mapping['z'] = 3
+        if 'desc' not in mapping and df.shape[1] >= 5: mapping['desc'] = 4
+
+        final_data = []
+        for _, row in df.iterrows():
+            record = {}
+            # Point
+            record['point'] = row.iloc[mapping['point']] if 'point' in mapping else ""
+            # Y / Northing
+            record['y'] = row.iloc[mapping['y']] if 'y' in mapping else None
+            # X / Easting
+            record['x'] = row.iloc[mapping['x']] if 'x' in mapping else None
+            # Z / Elevation
+            record['z'] = row.iloc[mapping['z']] if 'z' in mapping else 0.0
+            # Description
+            record['desc'] = row.iloc[mapping['desc']] if 'desc' in mapping else ""
+            
+            final_data.append(record)
+
+        # Convert columns_mapped keys/values to standard strings
+        mapped_info = {str(k): str(df.columns[v]) for k, v in mapping.items()}
+
+        response_payload = {
+            "message": f"PNEZD file parsed successfully using {sep if sep else 'whitespace'} delimiter.",
+            "data": final_data,
+            "columns_mapped": mapped_info
+        }
+        
+        # Apply the nuclear cleaner to EVERY part of the response
+        return force_native(response_payload)
+    except Exception as e:
+         import traceback
+         traceback.print_exc()
+         raise HTTPException(status_code=500, detail=f"Failed to parse coordinate file: {e}")
 
 class SubjectLotInput(BaseModel):
     lot_number: str

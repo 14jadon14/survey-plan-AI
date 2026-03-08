@@ -57,9 +57,8 @@ export default function UploadPage() {
             const data = await res.json();
 
             if (type === 'cad') {
-                setCadValidation(data);
-                // Hardcoded to approved for now since we haven't implemented specific layer validation yet
-                setStatus('approved');
+                setCadValidation(data.validation, data.file_path);
+                setStatus(data.valid ? 'approved' : 'rejected');
             } else {
                 setCsvData(data.data);
                 // Hardcoded to approved for now since we haven't implemented PNEZD check yet
@@ -86,6 +85,53 @@ export default function UploadPage() {
 
     const handleRotate = () => {
         setRotation((prev) => (prev + 90) % 360);
+    };
+
+    const handleCrossVerify = async () => {
+        if (!state.cadFilePath || !state.csvData || !csvCorners) return;
+
+        setLoading('cross-verify');
+        try {
+            // 1. Identify rows in CSV that match the comma-separated corner IDs
+            const cornerIds = csvCorners.split(',').map(s => s.trim());
+            const cornersToVerify = state.csvData.filter((row: any) => {
+                const pointId = String(row.point ?? row.Point ?? row[Object.keys(row)[0]]);
+                return cornerIds.includes(pointId);
+            }).map((row: any) => ({
+                x: parseFloat(row.x ?? row.Easting ?? row.E ?? row[Object.keys(row)[2]]),
+                y: parseFloat(row.y ?? row.Northing ?? row.N ?? row[Object.keys(row)[1]]),
+                name: String(row.point ?? row.Point ?? row[Object.keys(row)[0]])
+            }));
+
+            if (cornersToVerify.length === 0) {
+                alert("No matching points found in CSV for the provided corner IDs.");
+                return;
+            }
+
+            // 2. Send to backend
+            const res = await fetch(`http://localhost:8000/api/verify-cad-csv`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cad_file_path: state.cadFilePath,
+                    csv_corners: cornersToVerify
+                }),
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+            const results = await res.json();
+
+            if (results.valid) {
+                alert(`SUCCESS: All ${results.matches_count} corner points matched CAD vertices!`);
+            } else {
+                alert(`FAILURE: ${results.missing_count} corner points were NOT found in the CAD file within 0.001m. Check points: ${results.missing_corners.map((p: any) => p.name).join(', ')}`);
+            }
+        } catch (err: any) {
+            alert(`Failed cross-verification: ${err.message}`);
+            console.error(err);
+        } finally {
+            setLoading(null);
+        }
     };
 
     const handleSubmitPlan = async () => {
@@ -186,11 +232,27 @@ export default function UploadPage() {
                                     />
                                 </div>
 
+                                {state.cadValidation && state.cadValidation.layers && state.cadValidation.topology && (
+                                    <div className="mt-2 text-left text-[10px] space-y-1 bg-white p-2 rounded border border-slate-200">
+                                        {state.cadValidation.message && (
+                                            <p className="font-semibold text-slate-700 mb-1 border-b border-slate-100 pb-1">
+                                                {state.cadValidation.message}
+                                            </p>
+                                        )}
+                                        <p className={state.cadValidation.layers.valid ? "text-green-600" : "text-red-600"}>
+                                            {state.cadValidation.layers.valid ? "✓ Layers OK" : "✗ Unauthorized Layers: " + (state.cadValidation.layers.unauthorized_layers?.slice(0, 3).join(', ') || 'None')}
+                                        </p>
+                                        <p className={state.cadValidation.topology.valid ? "text-green-600" : "text-red-600"}>
+                                            {state.cadValidation.topology.valid ? "✓ Topology OK" : `✗ Gaps: ${state.cadValidation.topology.connectivity_gaps_count ?? 0} | Intersects: ${state.cadValidation.topology.intersections_count ?? 0}`}
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Status Indicator */}
                                 <div className="mt-4 pt-4 border-t border-slate-200 w-full flex justify-center">
                                     {cadStatus === 'pending' && <span className="text-xs font-semibold text-slate-400 capitalize tracking-wider">Awaiting Upload</span>}
-                                    {cadStatus === 'approved' && <div className="flex items-center gap-1.5 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-sm border border-green-200"><CheckCircle2 size={16} /> APPROVED</div>}
-                                    {cadStatus === 'rejected' && <div className="flex items-center gap-1.5 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm border border-red-200"><XCircle size={16} /> REJECTED</div>}
+                                    {cadStatus === 'approved' && <div className="flex items-center gap-1.5 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-sm border border-green-200"><CheckCircle2 size={16} /> VALIDATED</div>}
+                                    {cadStatus === 'rejected' && <div className="flex items-center gap-1.5 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm border border-red-200"><XCircle size={16} /> FAILED</div>}
                                 </div>
                             </>
                         )}
@@ -208,8 +270,9 @@ export default function UploadPage() {
                                 <div className="space-y-4 w-full">
                                     <div>
                                         <h3 className="text-sm font-bold text-slate-800 flex items-center justify-center gap-2">
-                                            <FileLineChart size={18} className="text-indigo-500" /> Coordinate Data (.csv)
+                                            <FileLineChart size={18} className="text-indigo-500" /> Coordinate Data (PNEZD)
                                         </h3>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Supports .csv, .txt, .asc, .xyz, .pts</p>
                                     </div>
 
                                     {/* Subject Lot Corners Input */}
@@ -226,17 +289,29 @@ export default function UploadPage() {
                                     </div>
 
                                     <input
-                                        type="file" accept=".csv"
+                                        type="file" accept=".csv,.txt,.asc,.xyz,.pts"
                                         onChange={(e) => handleDataUpload('/api/upload/csv', 'csv', e)}
                                         className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition-colors"
                                     />
                                 </div>
 
                                 {/* Status Indicator */}
-                                <div className="mt-4 pt-4 border-t border-slate-200 w-full flex justify-center">
-                                    {csvStatus === 'pending' && <span className="text-xs font-semibold text-slate-400 capitalize tracking-wider">Awaiting Upload</span>}
-                                    {csvStatus === 'approved' && <div className="flex items-center gap-1.5 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-sm border border-green-200"><CheckCircle2 size={16} /> APPROVED</div>}
-                                    {csvStatus === 'rejected' && <div className="flex items-center gap-1.5 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm border border-red-200"><XCircle size={16} /> REJECTED</div>}
+                                <div className="mt-4 pt-4 border-t border-slate-200 w-full flex flex-col items-center gap-3">
+                                    <div className="flex justify-center">
+                                        {csvStatus === 'pending' && <span className="text-xs font-semibold text-slate-400 capitalize tracking-wider">Awaiting Upload</span>}
+                                        {csvStatus === 'approved' && <div className="flex items-center gap-1.5 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-sm border border-green-200"><CheckCircle2 size={16} /> LOADED</div>}
+                                        {csvStatus === 'rejected' && <div className="flex items-center gap-1.5 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm border border-red-200"><XCircle size={16} /> FAILED</div>}
+                                    </div>
+
+                                    {cadStatus === 'approved' && csvStatus === 'approved' && (
+                                        <button
+                                            onClick={handleCrossVerify}
+                                            disabled={loading === 'cross-verify'}
+                                            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded flex items-center justify-center gap-1 shadow-sm transition-colors"
+                                        >
+                                            {loading === 'cross-verify' ? <RefreshCw className="animate-spin" size={12} /> : "CROSS-VERIFY WITH CAD"}
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}

@@ -3,6 +3,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 interface AppState {
     planImageUrl: string | null;
     detections: any[];
+    cadFilePath: string | null;
     cadValidation: any | null;
     csvData: any | null;
     subjectLot: any | null;
@@ -12,7 +13,7 @@ interface AppState {
 interface AppContextType {
     state: AppState;
     setPlanData: (imageUrl: string, detections: any[]) => void;
-    setCadValidation: (data: any) => void;
+    setCadValidation: (data: any, cadFilePath?: string | null) => void;
     setCsvData: (data: any) => void;
     setSubjectLot: (data: any) => void;
     setPlanType: (type: string) => void;
@@ -21,6 +22,7 @@ interface AppContextType {
 const defaultState: AppState = {
     planImageUrl: null,
     detections: [],
+    cadFilePath: null,
     cadValidation: null,
     csvData: null,
     subjectLot: null,
@@ -36,8 +38,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, planImageUrl, detections }));
     };
 
-    const setCadValidation = (cadValidation: any) => {
-        setState(prev => ({ ...prev, cadValidation }));
+    const setCadValidation = (cadValidation: any, cadFilePath: string | null = null) => {
+        setState(prev => ({ ...prev, cadValidation, cadFilePath: cadFilePath || prev.cadFilePath }));
     };
 
     const setCsvData = (csvData: any) => {

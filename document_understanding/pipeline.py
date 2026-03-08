@@ -6,11 +6,8 @@ from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
 import numpy as np
 import cv2
-try:
-    from deskew import determine_skew
-except ImportError:
-    determine_skew = None
-    print("Warning: 'deskew' library not found. Text deskewing will be disabled. Install with 'pip install deskew'.")
+# Deskewing disabled as per user request
+determine_skew = None
 
 class DocumentParser:
     def __init__(self, model_path: str = "naver-clova-ix/donut-base"):
