@@ -55,42 +55,7 @@ class DocumentParser:
                 bbox = bboxes[i] if bboxes and i < len(bboxes) else None
                 corners = corners_list[i] if corners_list and i < len(corners_list) else None
                 try:
-                    if corners:
-                        import math
-                        import numpy as np
-                        import cv2
-                        
-                        tl, tr, br, bl = corners
-                        w = int(math.hypot(tr[0]-tl[0], tr[1]-tl[1]))
-                        h = int(math.hypot(bl[0]-tl[0], bl[1]-tl[1]))
-                        
-                        # Use explicit OpenCV perspective transform to absolutely guarantee corner coordinate mapping
-                        # PIL Image.QUAD is backwards and brittle (maps destination to source).
-                        src_pts = np.array([tl, tr, br, bl], dtype="float32")
-                        dst_pts = np.array([
-                            [0, 0],       # TL
-                            [w - 1, 0],   # TR
-                            [w - 1, h - 1], # BR
-                            [0, h - 1]    # BL
-                        ], dtype="float32")
-                        
-                        # Calculate perspective matrix
-                        matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
-                        
-                        # Convert PIL to CV2
-                        cv_image = np.array(image)
-                        if len(cv_image.shape) == 3 and cv_image.shape[2] == 3:
-                            # Convert RGB to BGR for cv2
-                            cv_image = cv_image[:, :, ::-1]
-                            
-                        # Perform warp
-                        warped_cv = cv2.warpPerspective(cv_image, matrix, (w, h))
-                        
-                        # Convert back to PIL
-                        if len(warped_cv.shape) == 3 and warped_cv.shape[2] == 3:
-                            warped_cv = warped_cv[:, :, ::-1] # BGR to RGB
-                        crop = Image.fromarray(warped_cv)
-                    elif bbox:
+                    if bbox:
                         crop = image.crop(bbox)
                     else:
                         continue

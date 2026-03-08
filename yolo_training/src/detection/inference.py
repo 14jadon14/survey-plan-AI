@@ -107,64 +107,17 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                         try:
                             pts = obb_points.reshape(4, 2)
                             
-                            # 1. Obtain a perfectly rectangular representation of the polygon
+                            # We no longer perform geometric sorting for deskewing. 
+                            # We just use the raw bounding box or minAreaRect points to get the tightest crop.
                             rect = cv2.minAreaRect(pts)
                             box = cv2.boxPoints(rect)
                             
-                            # 2. Identify the "leftmost side" and "bottommost side" by their centers
-                            def edge_center(idxA, idxB):
-                                return ((box[idxA][0] + box[idxB][0]) / 2.0, (box[idxA][1] + box[idxB][1]) / 2.0)
-                            
-                            # Edges are defined by pairs of indices in the clockwise 'box' array
-                            edge_indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
-                            
-                            # Find the absolute leftmost edge (min center X)
-                            leftmost_edge = min(edge_indices, key=lambda e: edge_center(e[0], e[1])[0])
-                            
-                            # CRITICAL ORTHOGONAL FIX: For the "bottom" edge, we must ONLY look at the two edges 
-                            # that physically touch the leftmost edge. If a box is almost perfectly vertical (90 deg), 
-                            # the absolute bottom edge might technically be the opposite (right) edge, which causes 
-                            # a failure to find an intersection (bl_idx = None) and defaults to a twisted rotation.
-                            touching_edges = [
-                                e for e in edge_indices 
-                                if (e[0] in leftmost_edge or e[1] in leftmost_edge) and e != leftmost_edge
-                            ]
-                            
-                            # From the two adjacent edges, pick the one that is physically lower (highest Y)
-                            bottommost_edge = max(touching_edges, key=lambda e: edge_center(e[0], e[1])[1])
-                            
-                            # 3. The intersection of the leftmost edge and bottommost edge is the Bottom-Left (BL) corner.
-                            # Because the user specified: "leftmost side defines Y-axis (TL to BL), bottommost side defines X-axis (BL to BR)"
-                            bl_idx = None
-                            for i in leftmost_edge:
-                                if i in bottommost_edge:
-                                    bl_idx = i
-                                    break
-                            
-                            # Fallback just in case floating point weirdness happens
-                            if bl_idx is None:
-                                bl_idx = 1
-                            
-                            # 4. Map the rest of the corners sequentially clockwise
-                            # Clockwise from BL is TL -> TR -> BR.
-                            tl_idx = (bl_idx + 1) % 4
-                            tr_idx = (bl_idx + 2) % 4
-                            br_idx = (bl_idx + 3) % 4
-                            
-                            tl = box[tl_idx].tolist()
-                            tr = box[tr_idx].tolist()
-                            br = box[br_idx].tolist()
-                            bl = box[bl_idx].tolist()
-                            
-                            # Export the exact 4 corners for the 4-point perspective crop bypassing SAHI AABBs
+                            # Export the 4 corners for the crop bypassing SAHI AABBs
                             # Add shift_amount to make coordinates relative to the full original image
                             shift_x = shift_amount[0]
                             shift_y = shift_amount[1]
                             corners = [
-                                [float(tl[0] + shift_x), float(tl[1] + shift_y)],
-                                [float(tr[0] + shift_x), float(tr[1] + shift_y)],
-                                [float(br[0] + shift_x), float(br[1] + shift_y)],
-                                [float(bl[0] + shift_x), float(bl[1] + shift_y)]
+                                [float(p[0] + shift_x), float(p[1] + shift_y)] for p in box
                             ]
                             
                             # CRITICAL FIX 1: SAHI naively extracts `prediction[:4]` for bbox which is corrupted by OBB cx,cy format.
