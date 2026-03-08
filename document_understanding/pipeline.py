@@ -24,6 +24,12 @@ class DocumentParser:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading Donut model from {model_path} on {self.device}...")
         self.processor = DonutProcessor.from_pretrained(model_path)
+        
+        # Optimize size for survey plan crops (middle ground between small labels and large notes)
+        # Default is often 2560x1920; 1280x960 provides high fidelity without extreme interpolation.
+        self.processor.image_processor.size = {"height": 1280, "width": 960}
+        self.processor.image_processor.do_align_long_axis = True
+        
         self.model = VisionEncoderDecoderModel.from_pretrained(model_path).to(self.device)
         self.model.eval()
         print("Model loaded successfully.")
@@ -111,11 +117,11 @@ class DocumentParser:
             pixel_values,
             decoder_input_ids=decoder_input_ids,
             max_length=max_length,
-            # early_stopping=True, # Removed to avoid warning
+            early_stopping=True,
             pad_token_id=self.processor.tokenizer.pad_token_id,
             eos_token_id=self.processor.tokenizer.eos_token_id,
             use_cache=True,
-            num_beams=1,
+            num_beams=4,
             bad_words_ids=[[self.processor.tokenizer.unk_token_id]],
             return_dict_in_generate=True,
         )
