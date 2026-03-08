@@ -47,6 +47,10 @@ class DocumentParser:
             except Exception as e:
                 print(f"Error opening image {image}: {e}")
                 return []
+                
+        # Apply explicit deskewing globally to strictly horizontalize document BEFORE cropping
+        if determine_skew is not None:
+            image, bboxes, corners_list = self.global_deskew(image, bboxes, corners_list)
         
         results = []
         if bboxes or corners_list:
@@ -69,10 +73,6 @@ class DocumentParser:
                     else:
                         continue
                     
-                    # Apply explicit deskewing to strictly horizontalize text
-                    if determine_skew is not None:
-                        crop = self.deskew_image(crop)
-                    
                     parsed_content = self.parse_crop(crop)
                     results.append({"bbox": bbox, "corners": corners, "parsed_content": parsed_content, "crop": crop.copy()})
                 except Exception as e:
@@ -84,45 +84,79 @@ class DocumentParser:
             
         return results
         
-    def deskew_image(self, crop: Image.Image) -> Image.Image:
+    def global_deskew(self, image: Image.Image, bboxes: List[List[int]], corners_list: List[List[List[float]]]) -> tuple:
         """
-        Detects text skew angle and rotates the crop to a perfect horizontal baseline.
+        Detects global document skew angle and rotates both the full page image and all bounding geometries.
         
         Args:
-            crop (PIL.Image.Image): The raw crop image.
+            image (PIL.Image.Image): The full document image.
+            bboxes (List[List[int]]): List of bboxes.
+            corners_list (List[List[List[float]]]): List of corners.
             
         Returns:
-            PIL.Image.Image: The deskewed image.
+            tuple: (deskewed_image, rotated_bboxes, rotated_corners)
         """
         try:
             # Convert PIL to openCV Grayscale array
-            cv_img = np.array(crop.convert('L'))
+            cv_img = np.array(image.convert('L'))
             
-            # Determine angle using Hough Transform logic
+            # Determine angle using Hough Transform logic on the ENTIRE page
             angle = determine_skew(cv_img)
             
             if angle is None or abs(angle) < 0.5:
-                return crop
+                return image, bboxes, corners_list
                 
-            # Perform Affine Rotation
+            # Perform Affine Rotation per user spec
             (h, w) = cv_img.shape[:2]
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
             
             # Use original RGB for rotation to preserve colors/quality
-            rgb_arr = np.array(crop)
-            rotated = cv2.warpAffine(
+            rgb_arr = np.array(image)
+            rotated_img = cv2.warpAffine(
                 rgb_arr, 
                 M, 
                 (w, h), 
                 flags=cv2.INTER_CUBIC, 
                 borderMode=cv2.BORDER_REPLICATE
             )
+            image_out = Image.fromarray(rotated_img)
             
-            return Image.fromarray(rotated)
+            # Transform global coordinates using the exact same matrix
+            def rotate_pt(x, y):
+                new_x = M[0, 0] * x + M[0, 1] * y + M[0, 2]
+                new_y = M[1, 0] * x + M[1, 1] * y + M[1, 2]
+                return [new_x, new_y]
+                
+            rotated_bboxes = None
+            if bboxes:
+                rotated_bboxes = []
+                for box in bboxes:
+                    pts = [
+                        rotate_pt(box[0], box[1]),
+                        rotate_pt(box[2], box[1]),
+                        rotate_pt(box[2], box[3]),
+                        rotate_pt(box[0], box[3])
+                    ]
+                    xs = [p[0] for p in pts]
+                    ys = [p[1] for p in pts]
+                    rotated_bboxes.append([int(min(xs)), int(min(ys)), int(max(xs)), int(max(ys))])
+            else:
+                rotated_bboxes = bboxes
+                    
+            rotated_corners = None
+            if corners_list:
+                rotated_corners = []
+                for corners in corners_list:
+                    rotated_corners.append([rotate_pt(pt[0], pt[1]) for pt in corners])
+            else:
+                rotated_corners = corners_list
+                    
+            return image_out, rotated_bboxes, rotated_corners
+            
         except Exception as e:
-            print(f"Warning: Deskewing failed, returning original crop. Error: {e}")
-            return crop
+            print(f"Warning: Global deskewing failed, proceeding with original data. Error: {e}")
+            return image, bboxes, corners_list
 
     def parse_crop(self, crop: Image.Image) -> str:
         """
