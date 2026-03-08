@@ -118,8 +118,20 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                             # Edges are defined by pairs of indices in the clockwise 'box' array
                             edge_indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
                             
+                            # Find the absolute leftmost edge (min center X)
                             leftmost_edge = min(edge_indices, key=lambda e: edge_center(e[0], e[1])[0])
-                            bottommost_edge = max(edge_indices, key=lambda e: edge_center(e[0], e[1])[1])
+                            
+                            # CRITICAL ORTHOGONAL FIX: For the "bottom" edge, we must ONLY look at the two edges 
+                            # that physically touch the leftmost edge. If a box is almost perfectly vertical (90 deg), 
+                            # the absolute bottom edge might technically be the opposite (right) edge, which causes 
+                            # a failure to find an intersection (bl_idx = None) and defaults to a twisted rotation.
+                            touching_edges = [
+                                e for e in edge_indices 
+                                if (e[0] in leftmost_edge or e[1] in leftmost_edge) and e != leftmost_edge
+                            ]
+                            
+                            # From the two adjacent edges, pick the one that is physically lower (highest Y)
+                            bottommost_edge = max(touching_edges, key=lambda e: edge_center(e[0], e[1])[1])
                             
                             # 3. The intersection of the leftmost edge and bottommost edge is the Bottom-Left (BL) corner.
                             # Because the user specified: "leftmost side defines Y-axis (TL to BL), bottommost side defines X-axis (BL to BR)"
@@ -129,8 +141,7 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                                     bl_idx = i
                                     break
                             
-                            # If they are opposite edges (extreme tilt/length), they won't share an index.
-                            # Fallback to OpenCV's natural lowest-left point (index 1).
+                            # Fallback just in case floating point weirdness happens
                             if bl_idx is None:
                                 bl_idx = 1
                             
