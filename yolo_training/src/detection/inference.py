@@ -107,16 +107,43 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                         try:
                             pts = obb_points.reshape(4, 2)
                             
-                            # Sort corners into consistent TL, TR, BR, BL order.
-                            # Sum (x+y): smallest = TL (top-left), largest = BR (bottom-right)
-                            # Diff (y-x): smallest = TR (top-right), largest = BL (bottom-left)
-                            s = pts.sum(axis=1)
-                            diff = np.diff(pts, axis=1).flatten()
+                            # 1. Obtain a perfectly rectangular representation of the polygon
+                            rect = cv2.minAreaRect(pts)
+                            box = cv2.boxPoints(rect)
                             
-                            tl = pts[np.argmin(s)]
-                            br = pts[np.argmax(s)]
-                            tr = pts[np.argmin(diff)]
-                            bl = pts[np.argmax(diff)]
+                            # 2. Identify the "leftmost side" and "bottommost side" by their centers
+                            def edge_center(idxA, idxB):
+                                return ((box[idxA][0] + box[idxB][0]) / 2.0, (box[idxA][1] + box[idxB][1]) / 2.0)
+                            
+                            # Edges are defined by pairs of indices in the clockwise 'box' array
+                            edge_indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
+                            
+                            leftmost_edge = min(edge_indices, key=lambda e: edge_center(e[0], e[1])[0])
+                            bottommost_edge = max(edge_indices, key=lambda e: edge_center(e[0], e[1])[1])
+                            
+                            # 3. The intersection of the leftmost edge and bottommost edge is the Bottom-Left (BL) corner.
+                            # Because the user specified: "leftmost side defines Y-axis (TL to BL), bottommost side defines X-axis (BL to BR)"
+                            bl_idx = None
+                            for i in leftmost_edge:
+                                if i in bottommost_edge:
+                                    bl_idx = i
+                                    break
+                            
+                            # If they are opposite edges (extreme tilt/length), they won't share an index.
+                            # Fallback to OpenCV's natural lowest-left point (index 1).
+                            if bl_idx is None:
+                                bl_idx = 1
+                            
+                            # 4. Map the rest of the corners sequentially clockwise
+                            # Clockwise from BL is TL -> TR -> BR.
+                            tl_idx = (bl_idx + 1) % 4
+                            tr_idx = (bl_idx + 2) % 4
+                            br_idx = (bl_idx + 3) % 4
+                            
+                            tl = box[tl_idx].tolist()
+                            tr = box[tr_idx].tolist()
+                            br = box[br_idx].tolist()
+                            bl = box[bl_idx].tolist()
                             
                             # Export the exact 4 corners for the 4-point perspective crop bypassing SAHI AABBs
                             # Add shift_amount to make coordinates relative to the full original image
@@ -129,15 +156,12 @@ class OBBUltralyticsDetectionModel(UltralyticsDetectionModel):
                                 [float(bl[0] + shift_x), float(bl[1] + shift_y)]
                             ]
                             
-                            # CRITICAL FIX: SAHI naively extracts `prediction[:4]` for bbox. 
-                            # But YOLO OBB format is `[cx, cy, w, h]`. This causes SAHI to treat
-                            # `cx` as `xmin` and `w` as `xmax`, resulting in wildly corrupted boxes
-                            # (usually xmin > xmax). We MUST manually calculate the true AABB from 
-                            # our corners and overwrite SAHI's corrupted `bbox` variable.
-                            min_x = min(p[0] for p in corners)
-                            max_x = max(p[0] for p in corners)
-                            min_y = min(p[1] for p in corners)
-                            max_y = max(p[1] for p in corners)
+                            # CRITICAL FIX 1: SAHI naively extracts `prediction[:4]` for bbox which is corrupted by OBB cx,cy format.
+                            # CRITICAL FIX 2: Bbox sent to SAHI *must* be in local slice coordinates to avoid a double-shift.
+                            min_x = max(0.0, float(min(p[0] for p in box)))
+                            max_x = max(0.0, float(max(p[0] for p in box)))
+                            min_y = max(0.0, float(min(p[1] for p in box)))
+                            max_y = max(0.0, float(max(p[1] for p in box)))
                             bbox = [min_x, min_y, max_x, max_y]
                             
                             # DEBUG: print raw corner data
