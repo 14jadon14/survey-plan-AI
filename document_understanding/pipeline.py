@@ -4,6 +4,13 @@ import re
 from PIL import Image
 from transformers import DonutProcessor, VisionEncoderDecoderModel
 from typing import List, Dict, Union, Any
+import numpy as np
+import cv2
+try:
+    from deskew import determine_skew
+except ImportError:
+    determine_skew = None
+    print("Warning: 'deskew' library not found. Text deskewing will be disabled. Install with 'pip install deskew'.")
 
 class DocumentParser:
     def __init__(self, model_path: str = "naver-clova-ix/donut-base"):
@@ -62,6 +69,10 @@ class DocumentParser:
                     else:
                         continue
                     
+                    # Apply explicit deskewing to strictly horizontalize text
+                    if determine_skew is not None:
+                        crop = self.deskew_image(crop)
+                    
                     parsed_content = self.parse_crop(crop)
                     results.append({"bbox": bbox, "corners": corners, "parsed_content": parsed_content, "crop": crop.copy()})
                 except Exception as e:
@@ -72,6 +83,46 @@ class DocumentParser:
             results.append({"bbox": None, "parsed_content": parsed_content, "crop": image})
             
         return results
+        
+    def deskew_image(self, crop: Image.Image) -> Image.Image:
+        """
+        Detects text skew angle and rotates the crop to a perfect horizontal baseline.
+        
+        Args:
+            crop (PIL.Image.Image): The raw crop image.
+            
+        Returns:
+            PIL.Image.Image: The deskewed image.
+        """
+        try:
+            # Convert PIL to openCV Grayscale array
+            cv_img = np.array(crop.convert('L'))
+            
+            # Determine angle using Hough Transform logic
+            angle = determine_skew(cv_img)
+            
+            if angle is None or abs(angle) < 0.5:
+                return crop
+                
+            # Perform Affine Rotation
+            (h, w) = cv_img.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            
+            # Use original RGB for rotation to preserve colors/quality
+            rgb_arr = np.array(crop)
+            rotated = cv2.warpAffine(
+                rgb_arr, 
+                M, 
+                (w, h), 
+                flags=cv2.INTER_CUBIC, 
+                borderMode=cv2.BORDER_REPLICATE
+            )
+            
+            return Image.fromarray(rotated)
+        except Exception as e:
+            print(f"Warning: Deskewing failed, returning original crop. Error: {e}")
+            return crop
 
     def parse_crop(self, crop: Image.Image) -> str:
         """
