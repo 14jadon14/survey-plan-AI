@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 
 // ------------------------------------------------------------------
 // Type definitions
@@ -156,7 +156,7 @@ const initialChecklistData: ChecklistCategory[] = [
 export default function ChecklistTree({ planType = 'Standard' }: { planType?: string }) {
     const [data, setData] = useState<ChecklistCategory[]>(initialChecklistData);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-    const [globalNotes, setGlobalNotes] = useState('');
+    const [sectionNotes, setSectionNotes] = useState<Record<string, string>>({});
 
     const toggleExpand = (id: string) => {
         setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -186,30 +186,23 @@ export default function ChecklistTree({ planType = 'Standard' }: { planType?: st
         return (
             <div
                 key={item.id}
-                className={`mb-3 p-4 border rounded-md ${isChild ? 'ml-8 bg-blue-50 border-blue-100' : 'ml-0 bg-gray-50 border-gray-200'}`}
+                className={`mb-1 p-2 border rounded-md ${isChild ? 'ml-6 bg-blue-50 border-blue-100' : 'ml-0 bg-gray-50 border-gray-200'}`}
             >
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2 gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-sm font-medium text-gray-800 flex-1">{item.text}</span>
                     <div className="flex items-center space-x-2 shrink-0">
                         <button
-                            onClick={() => updateItemStatus(categoryId, item.id, 'unanswered')}
-                            className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-semibold ${item.status === 'unanswered' ? 'bg-gray-200 text-gray-800' : 'bg-white border text-gray-400 hover:bg-gray-50'}`}
-                        >
-                            <HelpCircle size={13} />
-                            <span>?</span>
-                        </button>
-                        <button
                             onClick={() => updateItemStatus(categoryId, item.id, 'yes')}
-                            className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-semibold ${item.status === 'yes' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-white border text-gray-400 hover:bg-gray-50'}`}
+                            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-bold ${item.status === 'yes' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-white border text-gray-400 hover:bg-gray-50'}`}
                         >
-                            <CheckCircle size={13} />
-                            <span>Yes</span>
+                            <CheckCircle size={14} />
+                            <span>YES</span>
                         </button>
                         <button
                             onClick={() => updateItemStatus(categoryId, item.id, 'na')}
-                            className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-semibold ${item.status === 'na' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-white border text-gray-400 hover:bg-gray-50'}`}
+                            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs font-bold ${item.status === 'na' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-white border text-gray-400 hover:bg-gray-50'}`}
                         >
-                            <XCircle size={13} />
+                            <XCircle size={14} />
                             <span>N/A</span>
                         </button>
                     </div>
@@ -231,15 +224,15 @@ export default function ChecklistTree({ planType = 'Standard' }: { planType?: st
         const isComplete = answeredItems === totalItems && totalItems > 0;
 
         return (
-            <div key={category.id} className="mb-4 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div key={category.id} className="mb-2 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                 <div
-                    className={`flex items-center justify-between p-3 cursor-pointer ${isExpanded ? 'bg-indigo-50' : 'bg-white hover:bg-gray-50'}`}
+                    className={`flex items-center justify-between px-2 py-1.5 cursor-pointer ${isExpanded ? 'bg-sky-50' : 'bg-white hover:bg-sky-50 transition-colors'}`}
                     onClick={() => toggleExpand(category.id)}
                 >
                     <div className="flex items-center space-x-2">
                         {isExpanded
-                            ? <ChevronDown size={18} className="text-gray-500" />
-                            : <ChevronRight size={18} className="text-gray-500" />}
+                            ? <ChevronDown size={18} className="text-sky-500" />
+                            : <ChevronRight size={18} className="text-sky-500" />}
                         <span className="font-semibold text-gray-900">{category.title}</span>
                     </div>
                     <div className="flex items-center space-x-3">
@@ -249,12 +242,24 @@ export default function ChecklistTree({ planType = 'Standard' }: { planType?: st
                 </div>
 
                 {isExpanded && (
-                    <div className="p-4 bg-white space-y-1">
+                    <div className="px-2 py-1.5 bg-white space-y-1">
                         {category.items.map(item => {
                             const visible = isVisible(item, category.items);
                             if (!visible) return null;
                             return renderItem(category.id, item, !!item.parentId);
                         })}
+
+                        {/* Section-specific notes */}
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Section Comments</label>
+                            <textarea
+                                className="w-full text-sm p-3 border border-slate-200 rounded-md focus:ring-sky-500 focus:border-sky-500 bg-slate-50"
+                                rows={2}
+                                value={sectionNotes[category.id] || ''}
+                                onChange={(e) => setSectionNotes(prev => ({ ...prev, [category.id]: e.target.value }))}
+                                placeholder={`Comments for ${category.title}...`}
+                            />
+                        </div>
                     </div>
                 )}
             </div>
@@ -263,27 +268,17 @@ export default function ChecklistTree({ planType = 'Standard' }: { planType?: st
 
     return (
         <div className="w-full">
-            <div className="space-y-2">
+            <div className="space-y-4">
                 {data.map(renderCategory)}
             </div>
-            <div className="mt-8 border-t border-gray-200 pt-6">
-                <label className="block text-sm font-bold text-gray-800 mb-2">Global Assessment Notes</label>
-                <textarea
-                    className="w-full text-sm p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 mb-4"
-                    rows={4}
-                    value={globalNotes}
-                    onChange={(e) => setGlobalNotes(e.target.value)}
-                    placeholder="Provide any overall summary, concerns, or justification regarding the entire plan audit..."
-                />
 
-                <div className="flex justify-end">
-                    <button
-                        onClick={() => alert("Checklist Submitted! (Database logging to be implemented)")}
-                        className="py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded shadow transition-colors"
-                    >
-                        Submit Final Checklist
-                    </button>
-                </div>
+            <div className="mt-6 flex justify-center border-t border-slate-100 pt-4">
+                <button
+                    onClick={() => alert("Checklist Submitted! (Database logging to be implemented)")}
+                    className="w-full max-w-md py-3 bg-sky-600 hover:bg-sky-700 text-white text-lg font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] mb-4"
+                >
+                    Submit Checklist
+                </button>
             </div>
         </div>
     );

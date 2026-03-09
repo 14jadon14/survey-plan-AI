@@ -8,6 +8,7 @@ interface AppState {
     csvData: any | null;
     subjectLot: any | null;
     planType: string;
+    anblsNumber: string;
 }
 
 interface AppContextType {
@@ -17,6 +18,7 @@ interface AppContextType {
     setCsvData: (data: any) => void;
     setSubjectLot: (data: any) => void;
     setPlanType: (type: string) => void;
+    setAnblsNumber: (num: string) => void;
 }
 
 const defaultState: AppState = {
@@ -26,7 +28,8 @@ const defaultState: AppState = {
     cadValidation: null,
     csvData: null,
     subjectLot: null,
-    planType: 'Subdivision Plan'
+    planType: 'Subdivision Plan',
+    anblsNumber: ''
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -54,8 +57,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, planType }));
     };
 
+    const setAnblsNumber = (anblsNumber: string) => {
+        setState(prev => ({ ...prev, anblsNumber }));
+    };
+
     return (
-        <AppContext.Provider value={{ state, setPlanData, setCadValidation, setCsvData, setSubjectLot, setPlanType }}>
+        <AppContext.Provider value={{ state, setPlanData, setCadValidation, setCsvData, setSubjectLot, setPlanType, setAnblsNumber }}>
             {children}
         </AppContext.Provider>
     );
