@@ -98,6 +98,7 @@ JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 # Donut Labeling Dataset Generation
 SAVE_CROPS_FOR_LABELING = True
 DONUT_TUNING_DIR = "/content/drive/MyDrive/SurveyPlan AI/runs/donut_tuning"
+MAX_CROPS_PER_CLASS = 40
 
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing

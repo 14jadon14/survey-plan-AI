@@ -315,6 +315,21 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
         
         print(f"[INFO] Exporting text crops for Donut labeling to: {donut_dir}")
         
+        # Load existing counts from metadata.jsonl
+        class_counts = {}
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        record = json_mod.loads(line)
+                        label = record.get("label")
+                        if label:
+                            class_counts[label] = class_counts.get(label, 0) + 1
+            except Exception as e:
+                print(f"[WARNING] Could not parse existing metadata.jsonl for counts: {e}")
+        
+        max_per_class = getattr(config, 'MAX_CROPS_PER_CLASS', 40)
+        
         grouped_by_img = {}
         for item in json_results:
             img_p = item["image_path"]
@@ -336,18 +351,23 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                             bbox = item["bbox"]
                             label = item["label"]
                             
+                            if class_counts.get(label, 0) >= max_per_class:
+                                continue
+                                
                             # PIL crop format: (left, upper, right, lower)
                             crop_img = img.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
                             
                             crop_filename = f"{base_name}_{label.replace(' ', '_')}_{idx}.jpg"
                             crop_img.save(os.path.join(donut_dir, crop_filename))
                             
-                            # Write empty template to metadata.jsonl
+                            # Write template to metadata.jsonl with label for tracking
                             record = {
                                 "file_name": crop_filename,
+                                "label": label,
                                 "ground_truth": json_mod.dumps({"gt_parse": {"text": ""}}, ensure_ascii=False)
                             }
-                            mf.write(json.dumps(record, ensure_ascii=False) + "\n")
+                            mf.write(json_mod.dumps(record, ensure_ascii=False) + "\n")
+                            class_counts[label] = class_counts.get(label, 0) + 1
                             crop_count += 1
                     except Exception as e:
                         print(f"[ERROR] Failed to extract crop from {img_p}: {e}")
