@@ -304,6 +304,56 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
 
     print(f"[INFO] Inference complete. Results saved to {output_dir}")
 
+    # --- DONUT CROP EXPORT ---
+    if getattr(config, 'SAVE_CROPS_FOR_LABELING', False) and json_results:
+        import json as json_mod
+        from PIL import Image
+        donut_dir = getattr(config, 'DONUT_TUNING_DIR', os.path.join(output_dir, "DONUT_TUNING"))
+        os.makedirs(donut_dir, exist_ok=True)
+        metadata_path = os.path.join(donut_dir, "metadata.jsonl")
+        
+        print(f"[INFO] Exporting text crops for Donut labeling to: {donut_dir}")
+        
+        grouped_by_img = {}
+        for item in json_results:
+            img_p = item["image_path"]
+            if img_p not in grouped_by_img:
+                grouped_by_img[img_p] = []
+            grouped_by_img[img_p].append(item)
+            
+        crop_count = 0
+        try:
+            with open(metadata_path, 'a', encoding='utf-8') as mf:
+                for img_p, items in grouped_by_img.items():
+                    if not os.path.exists(img_p):
+                        continue
+                    try:
+                        img = Image.open(img_p).convert("RGB")
+                        base_name = os.path.splitext(os.path.basename(img_p))[0]
+                        
+                        for idx, item in enumerate(items):
+                            bbox = item["bbox"]
+                            label = item["label"]
+                            
+                            # PIL crop format: (left, upper, right, lower)
+                            crop_img = img.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
+                            
+                            crop_filename = f"{base_name}_{label.replace(' ', '_')}_{idx}.jpg"
+                            crop_img.save(os.path.join(donut_dir, crop_filename))
+                            
+                            # Write empty template to metadata.jsonl
+                            record = {
+                                "file_name": crop_filename,
+                                "ground_truth": json_mod.dumps({"gt_parse": {"text": ""}}, ensure_ascii=False)
+                            }
+                            mf.write(json.dumps(record, ensure_ascii=False) + "\n")
+                            crop_count += 1
+                    except Exception as e:
+                        print(f"[ERROR] Failed to extract crop from {img_p}: {e}")
+            print(f"[SUCCESS] Exported {crop_count} crops for labeling.")
+        except Exception as e:
+            print(f"[ERROR] Failed to save crops to {donut_dir}: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description="Run SAHI Sliced Inference using YOLO model")
     parser.add_argument('--model_path', type=str, required=True, help='Path to trained YOLO .pt model')

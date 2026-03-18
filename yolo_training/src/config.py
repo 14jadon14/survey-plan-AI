@@ -95,6 +95,10 @@ if not os.path.exists(GOOGLE_DRIVE_PATH):
 JSON_OUTPUT_FILENAME = "crop_parameters.json"
 JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 
+# Donut Labeling Dataset Generation
+SAVE_CROPS_FOR_LABELING = True
+DONUT_TUNING_DIR = os.path.join(GOOGLE_DRIVE_PATH, "DONUT_TUNING")
+
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing
 EXCLUDED_FROM_TEXT = ["smf", "sms", "sqib", "ip", "ribf", "scale bar", "north arrow", "signature", "counsel stamp", "dev stamp", "anbls valnum", "pin num", "calc", "key plan", "legend"]
