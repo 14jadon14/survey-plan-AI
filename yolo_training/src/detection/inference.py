@@ -297,7 +297,8 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             try:
                 with open(json_path, 'w') as f:
                     json.dump(json_results, f, indent=2)
-                print(f"  [DEBUG] Saved incremental JSON with {len(json_results)} items to {json_path}")
+                current_img_items = len([r for r in json_results if r['image_path'] == os.path.abspath(image_path)])
+                print(f"  [DEBUG] Updated {json_path} (Current image detections: {current_img_items} | Total saved across all images: {len(json_results)})")
             except Exception as e:
                  print(f"[ERROR] Failed to save incremental JSON to {json_path}: {e}")
         # -----------------------------
@@ -308,7 +309,7 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
     if getattr(config, 'SAVE_CROPS_FOR_LABELING', False) and json_results:
         import json as json_mod
         from PIL import Image
-        donut_dir = getattr(config, 'DONUT_TUNING_DIR', os.path.join(output_dir, "DONUT_TUNING"))
+        donut_dir = getattr(config, 'DONUT_TUNING_DIR', "/content/drive/MyDrive/SurveyPlan AI/runs/donut_tuning")
         os.makedirs(donut_dir, exist_ok=True)
         metadata_path = os.path.join(donut_dir, "metadata.jsonl")
         
