@@ -1,6 +1,0 @@
-Point,Northing,Easting,Description
-1,0,0,CORNER
-2,0,100,CORNER
-3,100,100,CORNER
-4,100,0,CORNER
-5,50,50,RANDOM
