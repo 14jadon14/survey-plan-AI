@@ -2,9 +2,9 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 32
+BATCH_SIZE = 24
 IMGSZ = 1024
-EPOCHS = 60
+EPOCHS = 50
 SLICE_HEIGHT = 2048
 SLICE_WIDTH = 2048
 OVERLAP_HEIGHT_RATIO = 0.4
@@ -15,7 +15,7 @@ AUG_FLIPLR = 0.0
 CACHE_RAM = True
 COS_LR = True
 AMP = True
-CLOSE_MOSAIC_EPOCHS = 10
+CLOSE_MOSAIC_EPOCHS = 15
 PATIENCE = 15
 
 # Inference Hyperparameters
