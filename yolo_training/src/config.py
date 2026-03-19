@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 IMGSZ = 1024
 EPOCHS = 60
 SLICE_HEIGHT = 2048
@@ -16,7 +16,7 @@ CACHE_RAM = True
 COS_LR = True
 AMP = True
 CLOSE_MOSAIC_EPOCHS = 10
-PATIENCE = 10
+PATIENCE = 15
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.30
