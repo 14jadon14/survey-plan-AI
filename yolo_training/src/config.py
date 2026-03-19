@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 16
+BATCH_SIZE = 24
 IMGSZ = 1024
 EPOCHS = 60
 SLICE_HEIGHT = 2048
