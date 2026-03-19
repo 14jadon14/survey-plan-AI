@@ -2,9 +2,9 @@ from pathlib import Path
 import os
 
 # Hyperparameters
-BATCH_SIZE = 24
+BATCH_SIZE = 16
 IMGSZ = 1024
-EPOCHS = 50
+EPOCHS = 60
 SLICE_HEIGHT = 2048
 SLICE_WIDTH = 2048
 OVERLAP_HEIGHT_RATIO = 0.4
@@ -15,20 +15,20 @@ AUG_FLIPLR = 0.0
 CACHE_RAM = True
 COS_LR = True
 AMP = True
-CLOSE_MOSAIC_EPOCHS = 15
-PATIENCE = 15
+CLOSE_MOSAIC_EPOCHS = 10
+PATIENCE = 10
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.30
-SAHI_POSTPROCESS_TYPE = "NMS"
-SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
+SAHI_POSTPROCESS_TYPE = "NMM"
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
 POSTPROCESS_CLASS_AGNOSTIC = False   # Merge overlapping boxes regardless of class
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
 
 # Dataset Processing Hyperparameters
-TRAIN_SPLIT_PCT = 0.8
+TRAIN_SPLIT_PCT = 0.7
 DATASET_MAX_WORKERS = 4
 
 # Label Mapping System
@@ -98,7 +98,7 @@ JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 # Donut Labeling Dataset Generation
 SAVE_CROPS_FOR_LABELING = True
 DONUT_TUNING_DIR = "/content/drive/MyDrive/SurveyPlan AI/runs/donut_tuning"
-MAX_CROPS_PER_CLASS = 10
+MAX_CROPS_PER_CLASS = 40
 
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing
