@@ -251,13 +251,20 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
             
 
             # Collect results for JSON output.
-            # Always gather results — saving to disk is gated separately below.
-            # This ensures the API path (Scenario 3) gets angle data even when
-            # SAVE_JSON_FOR_DOC_PARSING is False.
             text_labels = getattr(config, 'TEXT_LABELS', []) if config else []
+            label_map = getattr(config, 'LABEL_MAP', {}) if config else {}
+            
+            # Build reverse map for fast lookup: {"source_label": "macro_label"}
+            reverse_map = {}
+            for target_label, source_labels in label_map.items():
+                for source in source_labels:
+                    reverse_map[source] = target_label
             
             for prediction in result.object_prediction_list:
-                label = prediction.category.name
+                raw_label = prediction.category.name
+                
+                # Apply LABEL_MAP remapping
+                label = reverse_map.get(raw_label, raw_label)
                 
                 # Filter by label if TEXT_LABELS is defined and not empty
                 if text_labels and label not in text_labels:
