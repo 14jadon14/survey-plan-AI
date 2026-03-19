@@ -38,14 +38,12 @@ LABEL_MAP = {
     "adj lot": ["adj lot"],
     "anbls valnum": ["anbls valnum"],
     "area": ["area"],
-    "azimuth": ["azimuth"],
     "calc": ["calc"],
     "coord table": ["coord table"],
     "counsel stamp": ["counsel stamp"],
     "curve data": ["curve data"],
     "curve table": ["curve table"],
     "dev stamp": ["dev stamp"],
-    "distance": ["distance"],
     "ip": ["ip"],
     "key plan": ["key plan"],
     "legend": ["legend"],
@@ -62,7 +60,8 @@ LABEL_MAP = {
     "sqib": ["sqib"],
     "street": ["street"],
     "text": ["text", "title data", "plan purpsoe", "file num", "plan date"],
-    "signature": ["owner signature", "nbls signature"]
+    "signature": ["owner signature", "nbls signature"],
+    "az_dist": ["azimuth", "distance"]
 }
 
 # Hybrid Training (Slices + Global Context)
@@ -98,7 +97,7 @@ JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 # Donut Labeling Dataset Generation
 SAVE_CROPS_FOR_LABELING = True
 DONUT_TUNING_DIR = "/content/drive/MyDrive/SurveyPlan AI/runs/donut_tuning"
-MAX_CROPS_PER_CLASS = 40
+MAX_CROPS_PER_CLASS = 10
 
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing
