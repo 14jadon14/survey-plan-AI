@@ -20,8 +20,8 @@ PATIENCE = 10
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.30
-SAHI_POSTPROCESS_TYPE = "NMM"
-SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
+SAHI_POSTPROCESS_TYPE = "NMS"
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
 POSTPROCESS_CLASS_AGNOSTIC = False   # Merge overlapping boxes regardless of class

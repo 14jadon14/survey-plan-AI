@@ -260,6 +260,8 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 for source in source_labels:
                     reverse_map[source] = target_label
             
+            seen_boxes = set()
+
             for prediction in result.object_prediction_list:
                 raw_label = prediction.category.name
                 
@@ -273,6 +275,12 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 bbox = prediction.bbox.to_xyxy()
                 bbox = [int(x) for x in bbox]
                 score = float(prediction.score.value)
+
+                # Deduplicate exact physical coordinates to definitively solve SAHI overlap bugs
+                box_hash = f"{label}_{round(bbox[0]/2)}_{round(bbox[1]/2)}_{round(bbox[2]/2)}_{round(bbox[3]/2)}"
+                if box_hash in seen_boxes:
+                    continue
+                seen_boxes.add(box_hash)
 
                 # Read angle/dims populated by OBBUltralyticsDetectionModel.extra_data
                 corners = None
