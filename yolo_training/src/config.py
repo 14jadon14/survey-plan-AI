@@ -61,7 +61,8 @@ LABEL_MAP = {
     "street": ["street"],
     "text": ["text", "title data", "plan purpsoe", "file num", "plan date"],
     "signature": ["owner signature", "nbls signature"],
-    "az_dist": ["azimuth", "distance"]
+    "azimuth": ["azimuth"],
+    "distance": ["distance"]
 }
 
 # Hybrid Training (Slices + Global Context)
