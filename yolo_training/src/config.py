@@ -102,7 +102,7 @@ MAX_CROPS_PER_CLASS = 40
 
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing
-EXCLUDED_FROM_TEXT = ["smf", "sms", "sqib", "ip", "ribf", "scale bar", "north arrow", "signature", "counsel stamp", "dev stamp", "anbls valnum", "pin num", "calc", "key plan", "legend"]
+EXCLUDED_FROM_TEXT = ["smf", "sms", "sqib", "ip", "ribf", "scale bar", "north arrow", "signature", "counsel stamp", "dev stamp", "anbls valnum", "pin num", "calc", "key plan", "legend", "curve table", "line table"]
 
 # Dynamically derive text labels but subtract the excluded ones
 TEXT_LABELS = [label for label in LABEL_MAP.keys() if label not in EXCLUDED_FROM_TEXT]

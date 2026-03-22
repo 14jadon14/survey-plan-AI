@@ -145,6 +145,10 @@ def process_dataset(dataset_dir, output_file=None):
                     
                     leaf_key = extract_keys(img_file.stem)
                     original_leaf = leaf_key.replace(" ", "_")
+                    
+                    if "curve_table" in original_leaf or "line_table" in original_leaf:
+                        continue
+                        
                     schema_key = LEAF_KEY_MAP.get(original_leaf, original_leaf)
                     
                     gt_dict = {}
@@ -156,7 +160,7 @@ def process_dataset(dataset_dir, output_file=None):
                         parsed = parse_curve_data_block(content)
                         gt_dict = {"gt_parse": {root_key: parsed}}
                     else:
-                        gt_dict = {"gt_parse": {root_key: {schema_key: content}}}
+                        gt_dict = {"gt_parse": {root_key: {schema_key: content.replace('\n', ' ')}}}
                     
                     entry = {
                         "file_name": img_file.name,
