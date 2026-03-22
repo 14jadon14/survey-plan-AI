@@ -19,16 +19,16 @@ CLOSE_MOSAIC_EPOCHS = 15
 PATIENCE = 30
 
 # Inference Hyperparameters
-CONF_THRESHOLD = 0.30
+CONF_THRESHOLD = 0.40
 SAHI_POSTPROCESS_TYPE = "NMM"
-SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.15
+SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices
 POSTPROCESS_CLASS_AGNOSTIC = False   # Merge overlapping boxes regardless of class
 IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tif', '*.tiff']
 
 # Dataset Processing Hyperparameters
-TRAIN_SPLIT_PCT = 0.7
+TRAIN_SPLIT_PCT = 0.75
 DATASET_MAX_WORKERS = 4
 
 # Label Mapping System
@@ -67,7 +67,7 @@ LABEL_MAP = {
 
 # Hybrid Training (Slices + Global Context)
 HYBRID_TRAINING = True
-GLOBAL_RESIZE_SIZE = 2048
+GLOBAL_RESIZE_SIZE = 4096
 
 # Paths
 # Default to local relative paths, but can be overridden
