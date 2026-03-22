@@ -21,7 +21,7 @@ This reference sheet tracks the **Task Start Tokens** and the **Schema Tags** re
 **Prompt**: `<s_lot_geometry>`
 **Schema**:
 ```json
-{"lot_geometry": {"az": "120-45.30.", "dist": "145.22"}}
+{"lot_geometry": {"az": "120-45-30", "dist": "145.22"}}
 ```
 
 ### B. Parcel Info

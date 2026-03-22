@@ -5,7 +5,7 @@ To train the Donut model effectively, you must follow the correct JSON structure
 ## 1. Structure of metadata.jsonl
 Each line must have this exact format (mind the nested JSON string in `ground_truth`):
 ```json
-{"file_name": "crop_1.jpg", "label": "azimuth", "ground_truth": "{\"gt_parse\": {\"lot_geometry\": {\"az\": \"45-30.15.\", \"dist\": \"\"}}}"}
+{"file_name": "crop_1.jpg", "label": "azimuth", "ground_truth": "{\"gt_parse\": {\"lot_geometry\": {\"az\": \"45-30-15\", \"dist\": \"\"}}}"}
 {"file_name": "crop_2.jpg", "label": "distance", "ground_truth": "{\"gt_parse\": {\"lot_geometry\": {\"az\": \"\", \"dist\": \"123.45\"}}}"}
 ```
 
@@ -20,7 +20,7 @@ For each class you label, you must use a standard set of Task Start Tokens and S
 ### Examples of Main Schemas:
 
 - **Lot Geometry** (`<s_lot_geometry>`): 
-  - `{"gt_parse": {"lot_geometry": {"az": "120-45.30.", "dist": "45.67"}}}`
+  - `{"gt_parse": {"lot_geometry": {"az": "120-45-30", "dist": "45.67"}}}`
 - **Parcel Info** (`<s_parcel_info>`): 
   - `{"gt_parse": {"parcel_info": {"lot_id": "42", "area_val": "1.25ac"}}}`
 - **General Text** (`<s_general>`): 
@@ -32,10 +32,9 @@ For each class you label, you must use a standard set of Task Start Tokens and S
 
 ## 3. Normalization Rules (CRITICAL)
 Consistency is key to getting a low Character Error Rate (CER). Please follow these rules in your transcriptions:
-1.  **Symbols to Dashes**: Replace `°` with `-` (e.g., `45°` -> `45-`).
-2.  **Symbols to Dots**: Replace `'` and `"` with `.` (e.g., `30' 15"` -> `30. 15.`).
-3.  **No Hallucinations**: Only transcribe what is visibly in the crop. Do not add context that is missing.
-4.  **Preserve Whitespace**: If there is a space between numbers, include it (e.g., `120 45` instead of `12045`).
+1.  **Symbols to Dashes**: Replace `°`, `'`, and `"` with `-` (e.g., `120° 45' 30"` -> `120-45-30`).
+2.  **No Hallucinations**: Only transcribe what is visibly in the crop. Do not add context that is missing.
+3.  **Preserve Whitespace**: If there is a space between numbers, include it (e.g., `120 45` instead of `12045`).
 
 ---
 

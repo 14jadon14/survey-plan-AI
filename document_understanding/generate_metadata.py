@@ -160,7 +160,10 @@ def process_dataset(dataset_dir, output_file=None):
                         parsed = parse_curve_data_block(content)
                         gt_dict = {"gt_parse": {root_key: parsed}}
                     else:
-                        gt_dict = {"gt_parse": {root_key: {schema_key: content.replace('\n', ' ')}}}
+                        clean_content = content.replace('\n', ' ')
+                        if schema_key == "az":
+                            clean_content = clean_content.replace('°', '-').replace("'", '-').replace('"', '-').replace('.', '-')
+                        gt_dict = {"gt_parse": {root_key: {schema_key: clean_content}}}
                     
                     entry = {
                         "file_name": img_file.name,
