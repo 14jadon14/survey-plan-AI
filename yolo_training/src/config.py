@@ -17,7 +17,7 @@ COS_LR = True
 AMP = True
 CLOSE_MOSAIC_EPOCHS = 15
 PATIENCE = 30
-OPTIMIZER = "auto" # Options: "auto", "SGD", "Adam", "AdamW", "RMSProp" (SGD in YOLO utilizes momentum, acting as MuSGD)
+OPTIMIZER = "SGD" # Options: "auto", "SGD", "Adam", "AdamW", "RMSProp" (SGD in YOLO utilizes momentum, acting as MuSGD)
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.40
