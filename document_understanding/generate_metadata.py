@@ -146,7 +146,7 @@ def process_dataset(dataset_dir, output_file=None):
                     leaf_key = extract_keys(img_file.stem)
                     original_leaf = leaf_key.replace(" ", "_")
                     
-                    if "curve_table" in original_leaf or "line_table" in original_leaf:
+                    if "curve_table" in original_leaf or "line_table" in original_leaf or "coord_table" in original_leaf:
                         continue
                         
                     schema_key = LEAF_KEY_MAP.get(original_leaf, original_leaf)
