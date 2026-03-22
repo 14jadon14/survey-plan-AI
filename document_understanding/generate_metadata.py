@@ -151,19 +151,22 @@ def process_dataset(dataset_dir, output_file=None):
                         
                     schema_key = LEAF_KEY_MAP.get(original_leaf, original_leaf)
                     
+                    # Force curve_data into lot_geometry regardless of which folder the crop was placed in
+                    current_root_key = "lot_geometry" if original_leaf == "curve_data" else root_key
+                    
                     gt_dict = {}
-                    if root_key == "tabular_data":
+                    if current_root_key == "tabular_data":
                         rows = parse_tabular_data(original_leaf, content)
                         # Tabular data expects a "row" key containing a list
-                        gt_dict = {"gt_parse": {root_key: {"row": rows}}}
-                    elif root_key == "lot_geometry" and original_leaf == "curve_data":
+                        gt_dict = {"gt_parse": {current_root_key: {"row": rows}}}
+                    elif current_root_key == "lot_geometry" and original_leaf == "curve_data":
                         parsed = parse_curve_data_block(content)
-                        gt_dict = {"gt_parse": {root_key: parsed}}
+                        gt_dict = {"gt_parse": {current_root_key: parsed}}
                     else:
                         clean_content = content.replace('\n', ' ')
                         if schema_key == "az":
                             clean_content = clean_content.replace('°', '-').replace("'", '-').replace('"', '-').replace('.', '-')
-                        gt_dict = {"gt_parse": {root_key: {schema_key: clean_content}}}
+                        gt_dict = {"gt_parse": {current_root_key: {schema_key: clean_content}}}
                     
                     entry = {
                         "file_name": img_file.name,
