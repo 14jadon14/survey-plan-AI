@@ -15,6 +15,7 @@ if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
 from app.services.cad_validator import CADValidator
+from app.services.plan_evaluator import PlanEvaluator
 
 # Import module paths
 try:
@@ -42,8 +43,13 @@ router = APIRouter()
 def get_parser():
     global parser
     if parser is None and DocumentParser is not None:
-        print("[INFO] Initializing DocumentParser...")
-        parser = DocumentParser()
+        donut_model_path = os.environ.get('DONUT_MODEL_PATH', os.path.join(BASE_DIR, 'yolo_training', 'runs', 'donut_weights'))
+        print(f"[INFO] Initializing DocumentParser with model from {donut_model_path}...")
+        try:
+            parser = DocumentParser(model_path=donut_model_path)
+        except Exception as e:
+            print(f"[WARNING] Failed to load local Donut model from {donut_model_path}. Falling back to default: {e}")
+            parser = DocumentParser()
     return parser
 
 @router.post("/upload/plan")
@@ -361,3 +367,21 @@ async def define_subject_lot(lot_data: SubjectLotInput):
         "message": "Subject lot configured.",
         "data": lot_data.dict()
     }
+
+class EvaluatePlanInput(BaseModel):
+    detections: List[Dict]
+    csv_corners: Optional[List[Dict]] = None
+
+@router.post("/evaluate-plan")
+async def evaluate_plan(data: EvaluatePlanInput):
+    """
+    Evaluates a survey plan's correctness based on YOLO detections + Donut OCR.
+    """
+    try:
+        evaluator = PlanEvaluator()
+        results = evaluator.evaluate(data.detections, data.csv_corners)
+        return results
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Plan evaluation failed: {e}")

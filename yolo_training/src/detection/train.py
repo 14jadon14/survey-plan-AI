@@ -56,7 +56,8 @@ def main():
         cos_lr=getattr(config, 'COS_LR', True),
         amp=getattr(config, 'AMP', True),
         close_mosaic=getattr(config, 'CLOSE_MOSAIC_EPOCHS', 10),
-        patience=getattr(config, 'PATIENCE', 20) # Added patience for early stopping optimization
+        patience=getattr(config, 'PATIENCE', 20), # Added patience for early stopping optimization
+        optimizer=getattr(config, 'OPTIMIZER', 'auto') # Added optimizer selection
     )
     
     print("[INFO] Training complete!")

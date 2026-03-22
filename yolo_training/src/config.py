@@ -17,6 +17,7 @@ COS_LR = True
 AMP = True
 CLOSE_MOSAIC_EPOCHS = 15
 PATIENCE = 30
+OPTIMIZER = "auto" # Options: "auto", "SGD", "Adam", "AdamW", "RMSProp" (SGD in YOLO utilizes momentum, acting as MuSGD)
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.40
@@ -98,7 +99,7 @@ JSON_OUTPUT_PATH = os.path.join(GOOGLE_DRIVE_PATH, JSON_OUTPUT_FILENAME)
 # Donut Labeling Dataset Generation
 SAVE_CROPS_FOR_LABELING = True
 DONUT_TUNING_DIR = "/content/drive/MyDrive/SurveyPlan AI/runs/donut_tuning"
-MAX_CROPS_PER_CLASS = 40
+MAX_CROPS_PER_CLASS = 80
 
 # Labels to consider as text for document parsing
 # Define labels to exclude from document parsing
