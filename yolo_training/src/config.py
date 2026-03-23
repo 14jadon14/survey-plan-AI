@@ -21,7 +21,7 @@ OPTIMIZER = "SGD" # Options: "auto", "SGD", "Adam", "AdamW", "RMSProp" (SGD in Y
 
 # Inference Hyperparameters
 CONF_THRESHOLD = 0.40
-SAHI_POSTPROCESS_TYPE = "NMM"
+SAHI_POSTPROCESS_TYPE = "NMS"
 SAHI_POSTPROCESS_MATCH_THRESHOLD = 0.25
 SAHI_POSTPROCESS_MATCH_METRIC = "IOS"  # IOS = Intersection over Smaller area (better for diagonal/long objects)
 PERFORM_STANDARD_PRED = True       # Run full-image prediction alongside slices

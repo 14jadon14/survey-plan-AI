@@ -87,22 +87,12 @@ class DocumentParser:
         # Prepare inputs
         pixel_values = self.processor(crop, return_tensors="pt").pixel_values.to(self.device)
         
-        # Prepare decoder inputs
-        # We act as if we are starting generation. 
-        # For base model, we can start with the decoder_start_token_id if available,
-        # otherwise use a standard token.
-        task_prompt = "<s_synthdog>" # Synthetic OCR basic reading task
-        
-        # Check if task prompt token exists in tokenizer, otherwise use default start token
-        if task_prompt in self.processor.tokenizer.get_vocab():
-            decoder_input_ids = self.processor.tokenizer(task_prompt, add_special_tokens=False, return_tensors="pt").input_ids.to(self.device)
-        else:
-            # Fallback to default decoder start token
-            decoder_start_token_id = getattr(self.model.config, "decoder_start_token_id", None)
-            if decoder_start_token_id is None:
-                decoder_start_token_id = self.model.config.decoder.bos_token_id
+        # Use the decoder_start_token_id defined by the model config, which reflects the custom finetuning token task prompt.
+        decoder_start_token_id = getattr(self.model.config, "decoder_start_token_id", None)
+        if decoder_start_token_id is None:
+            decoder_start_token_id = self.model.config.decoder.bos_token_id
             
-            decoder_input_ids = torch.tensor([[decoder_start_token_id]], device=self.device)
+        decoder_input_ids = torch.tensor([[decoder_start_token_id]], device=self.device)
 
 
         # Generate

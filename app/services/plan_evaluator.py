@@ -12,7 +12,9 @@ def parse_donut_content(content: str) -> dict:
     try:
         # Donut outputs are typically JSON strings
         parsed = json.loads(content)
-        return parsed.get("gt_parse", parsed)
+        if isinstance(parsed, dict):
+            return parsed.get("gt_parse", parsed)
+        return {"raw_text": str(parsed)}
     except json.JSONDecodeError:
         # Fallback for malformed JSON, though usually Donut constraints help prevent this
         return {"raw_text": content}
@@ -68,7 +70,7 @@ class VisualElementsRule(Rule):
         key_plans = []
         
         for det in detections:
-            cls_name = det.get("class_name", "").lower()
+            cls_name = det.get("label", det.get("class_name", "")).lower()
             if cls_name in counts:
                 counts[cls_name] += 1
             if cls_name == "north arrow":
@@ -246,7 +248,7 @@ class DataIntegrityRule(Rule):
         plan_coordinates = []
 
         for det in detections:
-            cls_name = det.get("class_name", "").lower()
+            cls_name = det.get("label", det.get("class_name", "")).lower()
             if cls_name in marker_classes:
                 markers_count += 1
             if cls_name in bearing_distance_classes:

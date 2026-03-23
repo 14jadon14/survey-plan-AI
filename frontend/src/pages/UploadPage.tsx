@@ -42,7 +42,7 @@ export default function UploadPage() {
                 formData.append('corners', csvCorners);
             }
 
-            const res = await fetch(`http://localhost:8000${endpoint}`, {
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
             });
@@ -90,7 +90,7 @@ export default function UploadPage() {
             const formData = new FormData();
             formData.append('file', imageFile);
 
-            const res = await fetch(`http://localhost:8000/api/upload/plan`, {
+            const res = await fetch(`/api/upload/plan`, {
                 method: 'POST',
                 body: formData,
             });

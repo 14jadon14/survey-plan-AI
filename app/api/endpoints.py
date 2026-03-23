@@ -4,7 +4,7 @@ import json
 import uuid
 import tempfile
 import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from pydantic import BaseModel
 import ezdxf
@@ -43,7 +43,7 @@ router = APIRouter()
 def get_parser():
     global parser
     if parser is None and DocumentParser is not None:
-        donut_model_path = os.environ.get('DONUT_MODEL_PATH', os.path.join(BASE_DIR, 'yolo_training', 'runs', 'donut_weights'))
+        donut_model_path = os.environ.get('DONUT_MODEL_PATH', os.path.join(BASE_DIR, 'donut', 'weights'))
         print(f"[INFO] Initializing DocumentParser with model from {donut_model_path}...")
         try:
             parser = DocumentParser(model_path=donut_model_path)
@@ -98,16 +98,26 @@ async def upload_plan(file: UploadFile = File(...)):
             detections = json.load(f)
 
         # 3. Parse with Donut
+        import config
+        text_labels = getattr(config, 'TEXT_LABELS', [])
+        
+        donut_crops_indices = []
         bboxes = []
         angles = []
         
-        for det in detections:
+        for i, det in enumerate(detections):
+            label = det.get("label", "")
+            # Skip OCR for geometric objects like markers, arrows, stamps
+            if text_labels and label not in text_labels:
+                continue
+                
+            donut_crops_indices.append(i)
             bboxes.append(det.get("bbox"))
             angles.append(det.get("angle", 0))
 
         donut_parser = get_parser()
         if donut_parser and bboxes:
-             print(f"[INFO] Running Donut parsing on {len(bboxes)} crops...")
+             print(f"[INFO] Running Donut parsing on {len(bboxes)} text crops...")
              parsed_results = donut_parser.process_image(
                  image=temp_file_path,
                  bboxes=bboxes,
@@ -115,10 +125,10 @@ async def upload_plan(file: UploadFile = File(...)):
              )
              
              # Merge results back together
-             for i, det in enumerate(detections):
-                 if i < len(parsed_results):
-                     det["parsed_content"] = parsed_results[i].get("parsed_content", "")
-                     det["error"] = parsed_results[i].get("error", None)
+             for j, original_idx in enumerate(donut_crops_indices):
+                 if j < len(parsed_results):
+                     detections[original_idx]["parsed_content"] = parsed_results[j].get("parsed_content", "")
+                     detections[original_idx]["error"] = parsed_results[j].get("error", None)
 
         # We return the initial file URL so the frontend can serve it (in reality, we should serve statically or use a blob URL)
         # We will assume frontend serves the same local file or we stream it back.

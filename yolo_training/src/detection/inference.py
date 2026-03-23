@@ -168,7 +168,8 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
         detection_model = OBBUltralyticsDetectionModel(
             model_path=model_path,
             confidence_threshold=conf_thres if conf_thres else (getattr(config, 'CONF_THRESHOLD', 0.60) if config else 0.60),
-            device=device
+            device=device,
+            image_size=getattr(config, 'IMGSZ', 1024) if config else 1024
         )
         detection_model.load_model()
     except Exception as e:
@@ -268,9 +269,8 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
                 # Apply LABEL_MAP remapping
                 label = reverse_map.get(raw_label, raw_label)
                 
-                # Filter by label if TEXT_LABELS is defined and not empty
-                if text_labels and label not in text_labels:
-                    continue
+                # Only map the label; we no longer discard non-text labels from the JSON!
+                # Those non-text markers are critical for the UI to display and for the PlanEvaluator to run its logic.
 
                 bbox = prediction.bbox.to_xyxy()
                 bbox = [int(x) for x in bbox]
@@ -346,7 +346,11 @@ def run_inference(model_path, source, output_dir, slice_wh=None, overlap_ratio=N
         max_per_class = getattr(config, 'MAX_CROPS_PER_CLASS', 40)
         
         grouped_by_img = {}
+        text_labels = getattr(config, 'TEXT_LABELS', [])
         for item in json_results:
+            label = item["label"]
+            if text_labels and label not in text_labels:
+                continue
             img_p = item["image_path"]
             if img_p not in grouped_by_img:
                 grouped_by_img[img_p] = []
