@@ -1,0 +1,423 @@
+{
+  "added_tokens_decoder": {
+    "0": {
+      "content": "<s>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "1": {
+      "content": "<pad>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "2": {
+      "content": "</s>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "3": {
+      "content": "<unk>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57521": {
+      "content": "<mask>",
+      "lstrip": true,
+      "normalized": true,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57522": {
+      "content": "<sep/>",
+      "lstrip": false,
+      "normalized": true,
+      "rstrip": false,
+      "single_word": false,
+      "special": false
+    },
+    "57523": {
+      "content": "<s_iitcdip>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57524": {
+      "content": "<s_synthdog>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57525": {
+      "content": "</adj_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57526": {
+      "content": "<area_val>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57527": {
+      "content": "<row>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57528": {
+      "content": "</az>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57529": {
+      "content": "<adj_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57530": {
+      "content": "</dist>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57531": {
+      "content": "</row>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57532": {
+      "content": "</street>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57533": {
+      "content": "</chord>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57534": {
+      "content": "<plan_title>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57535": {
+      "content": "<dist>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57536": {
+      "content": "<s_tabular_data>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57537": {
+      "content": "</arc>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57538": {
+      "content": "<s_general>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57539": {
+      "content": "<lot_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57540": {
+      "content": "<s_parcel_info>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57541": {
+      "content": "</north>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57542": {
+      "content": "</text>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57543": {
+      "content": "<street>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57544": {
+      "content": "<pt_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57545": {
+      "content": "<s_lot_geometry>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57546": {
+      "content": "</area_val>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57547": {
+      "content": "<az>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57548": {
+      "content": "<radius>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57549": {
+      "content": "<east>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57550": {
+      "content": "<north>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57551": {
+      "content": "</radius>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57552": {
+      "content": "<arc>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57553": {
+      "content": "<chord>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57554": {
+      "content": "</pt_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57555": {
+      "content": "</plan_title>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57556": {
+      "content": "</east>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57557": {
+      "content": "<text>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "57558": {
+      "content": "</lot_id>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    }
+  },
+  "additional_special_tokens": [
+    "</adj_id>",
+    "<area_val>",
+    "<row>",
+    "</az>",
+    "<adj_id>",
+    "</dist>",
+    "</row>",
+    "</street>",
+    "</chord>",
+    "<plan_title>",
+    "<dist>",
+    "<s_tabular_data>",
+    "</arc>",
+    "<s_general>",
+    "<lot_id>",
+    "<s_parcel_info>",
+    "</north>",
+    "</text>",
+    "<street>",
+    "<pt_id>",
+    "<s_lot_geometry>",
+    "</area_val>",
+    "<az>",
+    "<radius>",
+    "<east>",
+    "<north>",
+    "</radius>",
+    "<arc>",
+    "<chord>",
+    "</pt_id>",
+    "</plan_title>",
+    "</east>",
+    "<text>",
+    "</lot_id>"
+  ],
+  "bos_token": "<s>",
+  "clean_up_tokenization_spaces": true,
+  "cls_token": "<s>",
+  "eos_token": "</s>",
+  "mask_token": "<mask>",
+  "model_max_length": 1000000000000000019884624838656,
+  "pad_token": "<pad>",
+  "processor_class": "DonutProcessor",
+  "sep_token": "</s>",
+  "sp_model_kwargs": {},
+  "unk_token": "<unk>",
+  "extra_special_tokens": [
+    "<s_general>",
+    "<s_lot_geometry>",
+    "<s_parcel_info>",
+    "<s_tabular_data>",
+    "<adj_id>",
+    "<arc>",
+    "<area_val>",
+    "<az>",
+    "<chord>",
+    "<dist>",
+    "<east>",
+    "<lot_id>",
+    "<north>",
+    "<plan_title>",
+    "<pt_id>",
+    "<radius>",
+    "<row>",
+    "<street>",
+    "<text>",
+    "</adj_id>",
+    "</arc>",
+    "</area_val>",
+    "</az>",
+    "</chord>",
+    "</dist>",
+    "</east>",
+    "</lot_id>",
+    "</north>",
+    "</plan_title>",
+    "</pt_id>",
+    "</radius>",
+    "</row>",
+    "</street>",
+    "</text>"
+  ]
+}
